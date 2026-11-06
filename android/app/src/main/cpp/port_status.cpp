@@ -30,6 +30,7 @@ std::vector<VkCommandBuffer> gCommands;
 ANativeWindow* gWindow = nullptr;
 std::string gStatus = "Waiting for Android render surface";
 uint64_t gFrames = 0;
+bool gDeviceLost = false;
 
 void destroySwapchain() {
     if (gDevice == VK_NULL_HANDLE) return;
@@ -56,6 +57,7 @@ void destroyAll() {
     if (gWindow) ANativeWindow_release(gWindow);
     gWindow = nullptr; gSurface = VK_NULL_HANDLE; gInstance = VK_NULL_HANDLE;
     gDevice = VK_NULL_HANDLE; gPhysical = VK_NULL_HANDLE; gQueue = VK_NULL_HANDLE;
+    gDeviceLost = false;
 }
 bool deviceExtension(VkPhysicalDevice d, const char* name) {
     uint32_t n = 0;
@@ -236,15 +238,17 @@ extern "C" JNIEXPORT jstring JNICALL Java_io_github_ravi9733_gta5port_MainActivi
 }
 extern "C" JNIEXPORT void JNICALL Java_io_github_ravi9733_gta5port_MainActivity_nativeResizeSurface(JNIEnv*,jobject,jint width,jint height){std::lock_guard<std::mutex> l(gMutex);if(!gDevice||!gWindow)return;if(width<=0||height<=0){gStatus="Waiting for a non-zero surface size";return;}if(makeSwapchain()){gStatus="Vulkan swapchain resized";}else{destroySwapchain();gStatus="Vulkan swapchain resize failed; waiting for surface recovery";}}
 extern "C" JNIEXPORT void JNICALL Java_io_github_ravi9733_gta5port_MainActivity_nativeRenderFrame(JNIEnv*,jobject){
- std::lock_guard<std::mutex> l(gMutex);if(!gDevice||gCommands.empty())return;
+ std::lock_guard<std::mutex> l(gMutex);if(!gDevice||gCommands.empty()||gDeviceLost)return;
  if(!gFence){gStatus="Vulkan frame fence is unavailable";return;}
  // Never let a stalled driver block the Choreographer/UI thread indefinitely.
  constexpr uint64_t kFrameWaitTimeoutNs=1000000000ull;
  VkResult fenceResult=vkWaitForFences(gDevice,1,&gFence,VK_TRUE,kFrameWaitTimeoutNs);
  if(fenceResult==VK_TIMEOUT){gStatus="Vulkan frame fence timed out; retrying next frame";return;}
+ if(fenceResult==VK_ERROR_DEVICE_LOST){gDeviceLost=true;gStatus="Vulkan device lost while waiting for frame fence; detach and reattach required";return;}
  if(fenceResult!=VK_SUCCESS){gStatus="Vulkan frame fence wait failed: "+std::to_string(fenceResult);return;}
  uint32_t index=0;VkResult r=vkAcquireNextImageKHR(gDevice,gSwapchain,kFrameWaitTimeoutNs,gAcquire,VK_NULL_HANDLE,&index);
  if(r==VK_TIMEOUT){gStatus="Vulkan image acquire timed out; retrying next frame";return;}
+ if(r==VK_ERROR_DEVICE_LOST){gDeviceLost=true;gStatus="Vulkan device lost while acquiring image; detach and reattach required";return;}
  auto recoverSwapchain=[&](const char* reason){if(!makeSwapchain()){destroySwapchain();gStatus=std::string(reason)+"; swapchain rebuild failed";}else{gStatus=std::string(reason)+"; swapchain rebuilt";}};
  if(r==VK_ERROR_OUT_OF_DATE_KHR){recoverSwapchain("Vulkan surface out of date");return;}
  if(r==VK_ERROR_SURFACE_LOST_KHR){
@@ -261,8 +265,11 @@ extern "C" JNIEXPORT void JNICALL Java_io_github_ravi9733_gta5port_MainActivity_
  vkCmdBeginRenderPass(cmd,&ri,VK_SUBPASS_CONTENTS_INLINE);vkCmdEndRenderPass(cmd);if(vkEndCommandBuffer(cmd)!=VK_SUCCESS){recoverAcquiredImage();return;}
  VkPipelineStageFlags waitStage=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
  submit.waitSemaphoreCount=1;submit.pWaitSemaphores=&gAcquire;submit.pWaitDstStageMask=&waitStage;submit.commandBufferCount=1;submit.pCommandBuffers=&cmd;submit.signalSemaphoreCount=1;submit.pSignalSemaphores=&gComplete[index];
- if(vkResetFences(gDevice,1,&gFence)!=VK_SUCCESS){recoverAcquiredImage();return;}
- if(vkQueueSubmit(gQueue,1,&submit,gFence)!=VK_SUCCESS){
+ VkResult resetResult=vkResetFences(gDevice,1,&gFence);
+ if(resetResult!=VK_SUCCESS){if(resetResult==VK_ERROR_DEVICE_LOST){gDeviceLost=true;gStatus="Vulkan device lost while resetting frame fence";}else recoverAcquiredImage();return;}
+ VkResult submitResult=vkQueueSubmit(gQueue,1,&submit,gFence);
+ if(submitResult!=VK_SUCCESS){
+  if(submitResult==VK_ERROR_DEVICE_LOST){gDeviceLost=true;gStatus="Vulkan device lost during queue submit; detach and reattach required";return;}
   // The acquire semaphore was not consumed by a successful queue submission.
   // Rebuild the swapchain so neither that semaphore nor the acquired image is reused.
   recoverAcquiredImage();
@@ -270,6 +277,7 @@ extern "C" JNIEXPORT void JNICALL Java_io_github_ravi9733_gta5port_MainActivity_
  }
  VkPresentInfoKHR present{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};present.waitSemaphoreCount=1;present.pWaitSemaphores=&gComplete[index];present.swapchainCount=1;present.pSwapchains=&gSwapchain;present.pImageIndices=&index;
  r=vkQueuePresentKHR(gQueue,&present);
+ if(r==VK_ERROR_DEVICE_LOST){gDeviceLost=true;gStatus="Vulkan device lost during present; detach and reattach required";return;}
  if(r==VK_ERROR_SURFACE_LOST_KHR){
   if(recreateLostSurface())gStatus="Android Vulkan surface recreated after present";
   else{destroySwapchain();gStatus="Vulkan surface lost during present; detach and reattach required";}
