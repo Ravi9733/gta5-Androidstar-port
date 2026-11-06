@@ -24,6 +24,7 @@ This branch is the Android port workstream. The iOS app remains unchanged.
 - Vulkan physical-device, extension, surface-support, surface-format and swapchain-image queries now check their return codes before using results.
 - Android declares Vulkan 1.1 and the required graphics capability in its package manifest, so unsupported devices are filtered by the platform.
 - Activity destruction stops frame callbacks and releases any still-attached native Vulkan surface.
+- The Android status label polls native Vulkan diagnostics every 30 rendered frames, so runtime acquire/present/timeout errors become visible after startup.
 - Android native memory metrics: total physical RAM and current process RSS from `/proc/self/statm`. RSS is explicitly not treated as available process headroom or an Android memory limit.
 - Android cgroup memory probe checks finite cgroup v2/v1 limits and reports remaining cgroup headroom; it returns 0 when no reliable finite limit is exposed. This is a separate metric, not yet wired into the upstream engine's memory guard.
 
