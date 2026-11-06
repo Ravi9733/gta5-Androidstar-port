@@ -166,20 +166,36 @@ bool makeSwapchain() {
 }
 bool recreateLostSurface() {
     if (!gInstance || !gWindow || !gPhysical || !gDevice) return false;
-    vkDeviceWaitIdle(gDevice);
+
+    // Do not destroy resources still referenced by a queue after a device error.
+    const VkResult idleResult = vkDeviceWaitIdle(gDevice);
+    if (idleResult != VK_SUCCESS) {
+        gStatus = "Vulkan device could not become idle before surface recovery: " +
+                  std::to_string(idleResult);
+        return false;
+    }
     destroySwapchain();
     if (gSurface) {
         vkDestroySurfaceKHR(gInstance, gSurface, nullptr);
         gSurface = VK_NULL_HANDLE;
     }
+
     VkAndroidSurfaceCreateInfoKHR surfaceInfo{VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR};
     surfaceInfo.window = gWindow;
-    if (vkCreateAndroidSurfaceKHR(gInstance, &surfaceInfo, nullptr, &gSurface) != VK_SUCCESS) {
+    const VkResult surfaceResult =
+        vkCreateAndroidSurfaceKHR(gInstance, &surfaceInfo, nullptr, &gSurface);
+    if (surfaceResult != VK_SUCCESS) {
+        gStatus = "Android Vulkan surface recreation failed: " + std::to_string(surfaceResult);
         return false;
     }
+
     VkBool32 canPresent = VK_FALSE;
-    if (vkGetPhysicalDeviceSurfaceSupportKHR(gPhysical, gQueueFamily, gSurface, &canPresent) != VK_SUCCESS ||
-        !canPresent) {
+    const VkResult supportResult =
+        vkGetPhysicalDeviceSurfaceSupportKHR(gPhysical, gQueueFamily, gSurface, &canPresent);
+    if (supportResult != VK_SUCCESS || !canPresent) {
+        vkDestroySurfaceKHR(gInstance, gSurface, nullptr);
+        gSurface = VK_NULL_HANDLE;
+        gStatus = "Recreated Android surface is not supported by the selected Vulkan queue";
         return false;
     }
     return makeSwapchain();
