@@ -152,10 +152,10 @@ extern "C" JNIEXPORT jstring JNICALL Java_io_github_ravi9733_gta5port_MainActivi
 extern "C" JNIEXPORT void JNICALL Java_io_github_ravi9733_gta5port_MainActivity_nativeResizeSurface(JNIEnv*,jobject,jint,jint){std::lock_guard<std::mutex> l(gMutex);if(gDevice&&makeSwapchain())gStatus="Vulkan swapchain resized";}
 extern "C" JNIEXPORT void JNICALL Java_io_github_ravi9733_gta5port_MainActivity_nativeRenderFrame(JNIEnv*,jobject){
  std::lock_guard<std::mutex> l(gMutex);if(!gDevice||gCommands.empty())return;
- if(vkWaitForFences(gDevice,1,&gFence,VK_TRUE,UINT64_MAX)!=VK_SUCCESS)return;
+ if(!gFence||vkWaitForFences(gDevice,1,&gFence,VK_TRUE,UINT64_MAX)!=VK_SUCCESS)return;
  uint32_t index=0;VkResult r=vkAcquireNextImageKHR(gDevice,gSwapchain,UINT64_MAX,gAcquire,VK_NULL_HANDLE,&index);
  if(r==VK_ERROR_OUT_OF_DATE_KHR){makeSwapchain();return;}if(r!=VK_SUCCESS&&r!=VK_SUBOPTIMAL_KHR)return;
- vkResetFences(gDevice,1,&gFence);VkCommandBuffer cmd=gCommands[index];vkResetCommandBuffer(cmd,0);
+ VkCommandBuffer cmd=gCommands[index];if(vkResetCommandBuffer(cmd,0)!=VK_SUCCESS)return;
  VkCommandBufferBeginInfo bi{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};if(vkBeginCommandBuffer(cmd,&bi)!=VK_SUCCESS)return;
  VkClearValue clear{};float pulse=(float)((gFrames++%240)/240.0);clear.color.float32[0]=0.025f+0.025f*pulse;clear.color.float32[1]=0.045f;clear.color.float32[2]=0.075f;clear.color.float32[3]=1.f;
  VkRenderPassBeginInfo ri{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};ri.renderPass=gRenderPass;ri.framebuffer=gFramebuffers[index];ri.renderArea.extent=gExtent;ri.clearValueCount=1;ri.pClearValues=&clear;
