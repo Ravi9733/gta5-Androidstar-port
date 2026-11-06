@@ -24,6 +24,7 @@ This branch is the Android port workstream. The iOS app remains unchanged.
 - Android declares Vulkan 1.1 and the required graphics capability in its package manifest, so unsupported devices are filtered by the platform.
 - Activity destruction stops frame callbacks and releases any still-attached native Vulkan surface.
 - Android native memory metrics: total physical RAM and current process RSS from `/proc/self/statm`. RSS is explicitly not treated as available process headroom or an Android memory limit.
+- Android cgroup memory probe checks finite cgroup v2/v1 limits and reports remaining cgroup headroom; it returns 0 when no reliable finite limit is exposed. This is a separate metric, not yet wired into the upstream engine's memory guard.
 
 The current Vulkan milestone presents a changing clear-color frame only. It validates the Android Vulkan presentation path; it is not yet the GTA V renderer.
 
