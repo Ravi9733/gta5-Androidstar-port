@@ -21,6 +21,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
     private var resumed = false
     private var surfaceReady = false
     private var rendering = false
+    private var statusFrameCounter = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -82,6 +83,14 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
     override fun doFrame(frameTimeNanos: Long) {
         if (!rendering || !resumed || !surfaceReady) return
         nativeRenderFrame()
+        // Surface/driver errors can happen after startup; refresh the diagnostic
+        // text periodically without doing a Kotlin/JNI string allocation per frame.
+        statusFrameCounter++
+        if (statusFrameCounter >= 30) {
+            statusFrameCounter = 0
+            val latest = nativeVulkanStatus()
+            if (status.text.toString() != latest) status.text = latest
+        }
         Choreographer.getInstance().postFrameCallback(this)
     }
 
