@@ -73,7 +73,22 @@ bool makeSwapchain() {
     std::vector<VkSurfaceFormatKHR> formats(n);
     vkGetPhysicalDeviceSurfaceFormatsKHR(gPhysical,gSurface,&n,formats.data());
     VkSurfaceFormatKHR chosen=formats[0];
-    for (auto f:formats) if (f.format==VK_FORMAT_R8G8B8A8_UNORM || f.format==VK_FORMAT_B8G8R8A8_UNORM) {chosen=f;break;}
+    // Some Android surface implementations report one undefined format to mean
+    // that the application may choose any supported format.
+    if (n == 1 && formats[0].format == VK_FORMAT_UNDEFINED) {
+        chosen.format = VK_FORMAT_R8G8B8A8_UNORM;
+    } else {
+        bool preferred = false;
+        for (const auto& candidate : formats) {
+            if (candidate.format == VK_FORMAT_R8G8B8A8_UNORM ||
+                candidate.format == VK_FORMAT_B8G8R8A8_UNORM) {
+                chosen = candidate;
+                preferred = true;
+                break;
+            }
+        }
+        if (!preferred && chosen.format == VK_FORMAT_UNDEFINED) return false;
+    }
     gFormat=chosen.format;
     VkExtent2D extent=caps.currentExtent;
     if (extent.width==UINT32_MAX) {
