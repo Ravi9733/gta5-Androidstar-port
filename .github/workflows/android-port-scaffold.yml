@@ -21,6 +21,9 @@ jobs:
         with:
           gradle-version: "8.9"
       - uses: android-actions/setup-android@v3
+        with:
+          # The action's legacy default includes the removed SDK `tools` package.
+          packages: 'platform-tools'
       - name: Install Android NDK and CMake
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
       - name: Build ARM64 debug APK
