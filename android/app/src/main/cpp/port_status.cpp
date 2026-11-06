@@ -222,9 +222,13 @@ extern "C" JNIEXPORT void JNICALL Java_io_github_ravi9733_gta5port_MainActivity_
 extern "C" JNIEXPORT void JNICALL Java_io_github_ravi9733_gta5port_MainActivity_nativeRenderFrame(JNIEnv*,jobject){
  std::lock_guard<std::mutex> l(gMutex);if(!gDevice||gCommands.empty())return;
  if(!gFence){gStatus="Vulkan frame fence is unavailable";return;}
- VkResult fenceResult=vkWaitForFences(gDevice,1,&gFence,VK_TRUE,UINT64_MAX);
+ // Never let a stalled driver block the Choreographer/UI thread indefinitely.
+ constexpr uint64_t kFrameWaitTimeoutNs=1000000000ull;
+ VkResult fenceResult=vkWaitForFences(gDevice,1,&gFence,VK_TRUE,kFrameWaitTimeoutNs);
+ if(fenceResult==VK_TIMEOUT){gStatus="Vulkan frame fence timed out; retrying next frame";return;}
  if(fenceResult!=VK_SUCCESS){gStatus="Vulkan frame fence wait failed: "+std::to_string(fenceResult);return;}
- uint32_t index=0;VkResult r=vkAcquireNextImageKHR(gDevice,gSwapchain,UINT64_MAX,gAcquire,VK_NULL_HANDLE,&index);
+ uint32_t index=0;VkResult r=vkAcquireNextImageKHR(gDevice,gSwapchain,kFrameWaitTimeoutNs,gAcquire,VK_NULL_HANDLE,&index);
+ if(r==VK_TIMEOUT){gStatus="Vulkan image acquire timed out; retrying next frame";return;}
  auto recoverSwapchain=[&](const char* reason){if(!makeSwapchain()){destroySwapchain();gStatus=std::string(reason)+"; swapchain rebuild failed";}else{gStatus=std::string(reason)+"; swapchain rebuilt";}};
  if(r==VK_ERROR_OUT_OF_DATE_KHR){recoverSwapchain("Vulkan surface out of date");return;}
  if(r==VK_ERROR_SURFACE_LOST_KHR){
