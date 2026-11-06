@@ -17,6 +17,7 @@ This branch is the Android port workstream. The iOS app remains unchanged.
 - Physical-device selection requiring a graphics + presentation queue and swapchain support.
 - Vulkan logical device, swapchain, image views, render pass, framebuffers, command buffers, semaphores and fence.
 - Choreographer-driven acquire / clear / submit / present loop, with resize and pause/resume handling.
+- Vulkan rendering, surface attach/resize/detach and diagnostic polling are serialized on a dedicated Android `HandlerThread`; the UI thread only schedules frames and receives status updates. Pending-frame coalescing drops work rather than building an unbounded render queue.
 - Surface-resize failures now clean up partially-created swapchain resources and report a recoverable status.
 - Frame-acquire, frame-fence, and swapchain-rebuild failures now report Vulkan errors and avoid retaining a partially-built swapchain.
 - Vulkan frame-fence waits and swapchain-image acquisition use a bounded 1-second timeout, avoiding indefinite waits on the Android Choreographer/UI thread when a driver stalls.
