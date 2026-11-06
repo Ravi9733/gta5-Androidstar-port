@@ -221,7 +221,9 @@ extern "C" JNIEXPORT jstring JNICALL Java_io_github_ravi9733_gta5port_MainActivi
 extern "C" JNIEXPORT void JNICALL Java_io_github_ravi9733_gta5port_MainActivity_nativeResizeSurface(JNIEnv*,jobject,jint width,jint height){std::lock_guard<std::mutex> l(gMutex);if(!gDevice||!gWindow)return;if(width<=0||height<=0){gStatus="Waiting for a non-zero surface size";return;}if(makeSwapchain()){gStatus="Vulkan swapchain resized";}else{destroySwapchain();gStatus="Vulkan swapchain resize failed; waiting for surface recovery";}}
 extern "C" JNIEXPORT void JNICALL Java_io_github_ravi9733_gta5port_MainActivity_nativeRenderFrame(JNIEnv*,jobject){
  std::lock_guard<std::mutex> l(gMutex);if(!gDevice||gCommands.empty())return;
- if(!gFence||vkWaitForFences(gDevice,1,&gFence,VK_TRUE,UINT64_MAX)!=VK_SUCCESS)return;
+ if(!gFence){gStatus="Vulkan frame fence is unavailable";return;}
+ VkResult fenceResult=vkWaitForFences(gDevice,1,&gFence,VK_TRUE,UINT64_MAX);
+ if(fenceResult!=VK_SUCCESS){gStatus="Vulkan frame fence wait failed: "+std::to_string(fenceResult);return;}
  uint32_t index=0;VkResult r=vkAcquireNextImageKHR(gDevice,gSwapchain,UINT64_MAX,gAcquire,VK_NULL_HANDLE,&index);
  auto recoverSwapchain=[&](const char* reason){if(!makeSwapchain()){destroySwapchain();gStatus=std::string(reason)+"; swapchain rebuild failed";}else{gStatus=std::string(reason)+"; swapchain rebuilt";}};
  if(r==VK_ERROR_OUT_OF_DATE_KHR){recoverSwapchain("Vulkan surface out of date");return;}
