@@ -87,7 +87,23 @@ bool makeSwapchain() {
     sci.surface=gSurface; sci.minImageCount=imageCount; sci.imageFormat=chosen.format; sci.imageColorSpace=chosen.colorSpace;
     sci.imageExtent=extent; sci.imageArrayLayers=1; sci.imageUsage=VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     sci.imageSharingMode=VK_SHARING_MODE_EXCLUSIVE; sci.preTransform=caps.currentTransform;
-    sci.compositeAlpha=VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR; sci.presentMode=VK_PRESENT_MODE_FIFO_KHR; sci.clipped=VK_TRUE;
+    const VkCompositeAlphaFlagBitsKHR alphaModes[] = {
+        VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+        VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
+        VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
+        VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR
+    };
+    bool alphaSelected = false;
+    for (auto mode : alphaModes) {
+        if (caps.supportedCompositeAlpha & mode) {
+            sci.compositeAlpha = mode;
+            alphaSelected = true;
+            break;
+        }
+    }
+    if (!alphaSelected) return false;
+    if ((caps.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) == 0) return false;
+    sci.presentMode=VK_PRESENT_MODE_FIFO_KHR; sci.clipped=VK_TRUE;
     if (vkCreateSwapchainKHR(gDevice,&sci,nullptr,&gSwapchain)!=VK_SUCCESS) return false;
     gExtent=extent;
     vkGetSwapchainImagesKHR(gDevice,gSwapchain,&n,nullptr); gImages.resize(n);
