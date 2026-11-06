@@ -3,6 +3,7 @@
 #include <sys/sysinfo.h>
 #include <unistd.h>
 #include <cstdio>
+#include <cstdlib>
 #include <cstdint>
 #include <cstring>
 #include <limits>
