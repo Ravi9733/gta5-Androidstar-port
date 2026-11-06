@@ -17,6 +17,8 @@ This branch is the Android port workstream. The iOS app remains unchanged.
 - Physical-device selection requiring a graphics + presentation queue and swapchain support.
 - Vulkan logical device, swapchain, image views, render pass, framebuffers, command buffers, semaphores and fence.
 - Choreographer-driven acquire / clear / submit / present loop, with resize and pause/resume handling.
+- Surface-resize failures now clean up partially-created swapchain resources and report a recoverable status.
+- Frame-acquire and swapchain-rebuild failures now report the Vulkan result and avoid retaining a partially-built swapchain.
 - Android native memory metrics: total physical RAM and current process RSS from `/proc/self/statm`. RSS is explicitly not treated as available process headroom or an Android memory limit.
 
 The current Vulkan milestone presents a changing clear-color frame only. It validates the Android Vulkan presentation path; it is not yet the GTA V renderer.
