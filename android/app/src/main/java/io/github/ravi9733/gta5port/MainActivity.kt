@@ -96,4 +96,13 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
         resumed = true
         startFrames()
     }
+
+    override fun onDestroy() {
+        stopFrames()
+        if (surfaceReady) {
+            surfaceReady = false
+            nativeDetachSurface()
+        }
+        super.onDestroy()
+    }
 }
