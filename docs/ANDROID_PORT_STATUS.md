@@ -33,6 +33,8 @@ The current Vulkan milestone presents a changing clear-color frame only. It vali
 ## Remaining port work
 
 1. Port Android host services: lifecycle, files/asset access, audio, input/controller, memory/thread primitives and logging. `EngineHost.c` still has Apple-only `TargetConditionals.h`, `os/proc.h`, Mach task/VM APIs and must be platform-guarded before it can compile under the Android NDK.
+   - Memory-specific audit: upstream `PGProcessAvailableMemory()` uses `os_proc_available_memory()` on iOS, while its Catalyst branch uses `TASK_VM_INFO.phys_footprint`; the native memory guard also reads `phys_footprint` at its non-simulator call site. Android must provide a deliberately defined budget metric (and guard the Mach-only diagnostic walk in `pg_log_app_memory()`), not substitute total RAM or RSS for available memory.
+   - The Android cgroup parser now treats a valid `memory.current`/v1 usage value of zero as valid, accepts only fully parsed numeric values, recognizes v2 `max` as unlimited, and rejects the v1 unlimited sentinel.
 2. Implement the Vulkan equivalent of the game's native graphics command-ring consumer currently implemented by the Metal renderer.
 3. Port/compile the shader pipeline for Android Vulkan and verify texture formats, BC compression and render-target behavior.
 4. Integrate the portable ARM64 game engine and connect it to the Android host and Vulkan backend.
