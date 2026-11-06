@@ -19,6 +19,9 @@ This branch is the Android port workstream. The iOS app remains unchanged.
 - Choreographer-driven acquire / clear / submit / present loop, with resize and pause/resume handling.
 - Surface-resize failures now clean up partially-created swapchain resources and report a recoverable status.
 - Frame-acquire and swapchain-rebuild failures now report the Vulkan result and avoid retaining a partially-built swapchain.
+- Vulkan physical-device, extension, surface-support, surface-format and swapchain-image queries now check their return codes before using results.
+- Android declares Vulkan 1.1 and the required graphics capability in its package manifest, so unsupported devices are filtered by the platform.
+- Activity destruction stops frame callbacks and releases any still-attached native Vulkan surface.
 - Android native memory metrics: total physical RAM and current process RSS from `/proc/self/statm`. RSS is explicitly not treated as available process headroom or an Android memory limit.
 
 The current Vulkan milestone presents a changing clear-color frame only. It validates the Android Vulkan presentation path; it is not yet the GTA V renderer.
