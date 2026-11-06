@@ -32,22 +32,37 @@ extern "C" uint64_t PGAndroidResidentMemory(void) {
 }
 
 namespace {
-static uint64_t readLimit(const char* path) {
+static bool readCgroupValue(const char* path, uint64_t* out, bool allowUnlimited) {
     FILE* file = std::fopen(path, "r");
-    if (!file) return 0;
+    if (!file) return false;
+
     char value[64]{};
     const bool ok = std::fgets(value, sizeof(value), file) != nullptr;
     std::fclose(file);
-    if (!ok || value[0] == 'm') return 0; // cgroup v2: "max"
-    char* end = nullptr;
-    const unsigned long long parsed = std::strtoull(value, &end, 10);
-    return end == value ? 0 : static_cast<uint64_t>(parsed);
+    if (!ok) return false;
+
+    char* begin = value;
+    while (*begin == ' ' || *begin == '\\t') ++begin;
+    if (allowUnlimited && std::strncmp(begin, "max", 3) == 0) return false;
+
+    char* parseEnd = nullptr;
+    const unsigned long long parsed = std::strtoull(begin, &parseEnd, 10);
+    if (parseEnd == begin) return false;
+    while (*parseEnd == ' ' || *parseEnd == '\\t' || *parseEnd == '\\r' || *parseEnd == '\\n') ++parseEnd;
+    if (*parseEnd != '\\0') return false;
+
+    *out = static_cast<uint64_t>(parsed);
+    return true;
 }
+
 static uint64_t cgroupHeadroom(const char* limitPath, const char* usagePath) {
-    const uint64_t limit = readLimit(limitPath);
-    const uint64_t usage = readLimit(usagePath);
-    // Ignore absent, unlimited, or implausibly large v1 sentinel limits.
-    if (!limit || !usage || limit >= (1ull << 60)) return 0;
+    uint64_t limit = 0;
+    uint64_t usage = 0;
+    if (!readCgroupValue(limitPath, &limit, true) ||
+        !readCgroupValue(usagePath, &usage, false)) return 0;
+
+    // cgroup v1 commonly reports a very large sentinel for an unlimited limit.
+    if (!limit || limit >= (1ull << 60)) return 0;
     return limit > usage ? limit - usage : 0;
 }
 }
