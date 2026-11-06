@@ -21,6 +21,7 @@ This branch is the Android port workstream. The iOS app remains unchanged.
 - Surface-resize failures now clean up partially-created swapchain resources and report a recoverable status.
 - Frame-acquire, frame-fence, and swapchain-rebuild failures now report Vulkan errors and avoid retaining a partially-built swapchain.
 - Vulkan frame-fence waits and swapchain-image acquisition use a bounded 1-second timeout, avoiding indefinite waits on the Android Choreographer/UI thread when a driver stalls.
+- `VK_ERROR_DEVICE_LOST` is now latched as a terminal state for the current surface session. The render loop stops issuing repeated acquire/submit/present calls and reports that detach/reattach is required, instead of spinning against a lost logical device.
 - `VK_ERROR_SURFACE_LOST_KHR` during acquire or present attempts to recreate the Android surface and swapchain; failed recovery leaves a clear detach/reattach status.
 - Lost-surface recovery now checks `vkDeviceWaitIdle` before destroying in-flight resources, reports the exact idle/surface-creation error, and destroys a newly-created surface if the selected queue cannot present to it.
 - Vulkan physical-device, extension, surface-support, surface-format and swapchain-image queries now check their return codes before using results.
