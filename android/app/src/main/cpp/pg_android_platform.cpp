@@ -6,7 +6,6 @@
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
-#include <limits>
 
 extern "C" uint64_t PGAndroidPhysicalMemory(void) {
     struct sysinfo info{};
@@ -42,14 +41,14 @@ static bool readCgroupValue(const char* path, uint64_t* out, bool allowUnlimited
     if (!ok) return false;
 
     char* begin = value;
-    while (*begin == ' ' || *begin == '\\t') ++begin;
+    while (*begin == ' ' || *begin == '\${ch}') ++begin;
     if (allowUnlimited && std::strncmp(begin, "max", 3) == 0) return false;
 
     char* parseEnd = nullptr;
     const unsigned long long parsed = std::strtoull(begin, &parseEnd, 10);
     if (parseEnd == begin) return false;
-    while (*parseEnd == ' ' || *parseEnd == '\\t' || *parseEnd == '\\r' || *parseEnd == '\\n') ++parseEnd;
-    if (*parseEnd != '\\0') return false;
+    while (*parseEnd == ' ' || *parseEnd == '\${ch}' || *parseEnd == '\${ch}' || *parseEnd == '\${ch}') ++parseEnd;
+    if (*parseEnd != '\${ch}') return false;
 
     *out = static_cast<uint64_t>(parsed);
     return true;
