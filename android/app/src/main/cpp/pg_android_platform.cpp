@@ -54,21 +54,24 @@ static bool readCgroupValue(const char* path, uint64_t* out, bool allowUnlimited
     return true;
 }
 
-static uint64_t cgroupHeadroom(const char* limitPath, const char* usagePath) {
+static bool cgroupHeadroom(const char* limitPath, const char* usagePath,
+                           uint64_t* outHeadroom) {
     uint64_t limit = 0;
     uint64_t usage = 0;
     if (!readCgroupValue(limitPath, &limit, true) ||
-        !readCgroupValue(usagePath, &usage, false)) return 0;
+        !readCgroupValue(usagePath, &usage, false)) return false;
 
     // cgroup v1 commonly reports a very large sentinel for an unlimited limit.
-    if (!limit || limit >= (1ull << 60)) return 0;
-    return limit > usage ? limit - usage : 0;
+    if (!limit || limit >= (1ull << 60)) return false;
+    *outHeadroom = limit > usage ? limit - usage : 0;
+    return true;
 }
 }
 extern "C" uint64_t PGAndroidCgroupMemoryHeadroom(void) {
-    uint64_t headroom = cgroupHeadroom("/sys/fs/cgroup/memory.max",
-                                       "/sys/fs/cgroup/memory.current");
-    if (headroom) return headroom;
-    return cgroupHeadroom("/sys/fs/cgroup/memory/memory.limit_in_bytes",
-                          "/sys/fs/cgroup/memory/memory.usage_in_bytes");
+    uint64_t headroom = 0;
+    if (cgroupHeadroom("/sys/fs/cgroup/memory.max",
+                       "/sys/fs/cgroup/memory.current", &headroom)) return headroom;
+    if (cgroupHeadroom("/sys/fs/cgroup/memory/memory.limit_in_bytes",
+                       "/sys/fs/cgroup/memory/memory.usage_in_bytes", &headroom)) return headroom;
+    return 0;
 }
