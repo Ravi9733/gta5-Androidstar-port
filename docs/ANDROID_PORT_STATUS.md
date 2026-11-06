@@ -18,7 +18,8 @@ This branch is the Android port workstream. The iOS app remains unchanged.
 - Vulkan logical device, swapchain, image views, render pass, framebuffers, command buffers, semaphores and fence.
 - Choreographer-driven acquire / clear / submit / present loop, with resize and pause/resume handling.
 - Surface-resize failures now clean up partially-created swapchain resources and report a recoverable status.
-- Frame-acquire and swapchain-rebuild failures now report the Vulkan result and avoid retaining a partially-built swapchain.
+- Frame-acquire, frame-fence, and swapchain-rebuild failures now report Vulkan errors and avoid retaining a partially-built swapchain.
+- `VK_ERROR_SURFACE_LOST_KHR` during acquire or present attempts to recreate the Android surface and swapchain; failed recovery leaves a clear detach/reattach status.
 - Vulkan physical-device, extension, surface-support, surface-format and swapchain-image queries now check their return codes before using results.
 - Android declares Vulkan 1.1 and the required graphics capability in its package manifest, so unsupported devices are filtered by the platform.
 - Activity destruction stops frame callbacks and releases any still-attached native Vulkan surface.
@@ -28,7 +29,7 @@ The current Vulkan milestone presents a changing clear-color frame only. It vali
 
 ## Remaining port work
 
-1. Port Android host services: lifecycle, files/asset access, audio, input/controller, memory/thread primitives and logging.
+1. Port Android host services: lifecycle, files/asset access, audio, input/controller, memory/thread primitives and logging. `EngineHost.c` still has Apple-only `TargetConditionals.h`, `os/proc.h`, Mach task/VM APIs and must be platform-guarded before it can compile under the Android NDK.
 2. Implement the Vulkan equivalent of the game's native graphics command-ring consumer currently implemented by the Metal renderer.
 3. Port/compile the shader pipeline for Android Vulkan and verify texture formats, BC compression and render-target behavior.
 4. Integrate the portable ARM64 game engine and connect it to the Android host and Vulkan backend.
