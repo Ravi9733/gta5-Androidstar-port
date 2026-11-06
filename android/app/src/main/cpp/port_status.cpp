@@ -157,7 +157,7 @@ extern "C" JNIEXPORT void JNICALL Java_io_github_ravi9733_gta5port_MainActivity_
  if(r==VK_ERROR_OUT_OF_DATE_KHR){makeSwapchain();return;}if(r!=VK_SUCCESS&&r!=VK_SUBOPTIMAL_KHR)return;
  vkResetFences(gDevice,1,&gFence);VkCommandBuffer cmd=gCommands[index];vkResetCommandBuffer(cmd,0);
  VkCommandBufferBeginInfo bi{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};vkBeginCommandBuffer(cmd,&bi);
- VkClearValue clear{};float pulse=(float)((gFrames++%240)/240.0);clear.color={{0.025f+0.025f*pulse,0.045f,0.075f,1.f}};
+ VkClearValue clear{};float pulse=(float)((gFrames++%240)/240.0);clear.color.float32[0]=0.025f+0.025f*pulse;clear.color.float32[1]=0.045f;clear.color.float32[2]=0.075f;clear.color.float32[3]=1.f;
  VkRenderPassBeginInfo ri{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};ri.renderPass=gRenderPass;ri.framebuffer=gFramebuffers[index];ri.renderArea.extent=gExtent;ri.clearValueCount=1;ri.pClearValues=&clear;
  vkCmdBeginRenderPass(cmd,&ri,VK_SUBPASS_CONTENTS_INLINE);vkCmdEndRenderPass(cmd);vkEndCommandBuffer(cmd);
  VkPipelineStageFlags waitStage=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
