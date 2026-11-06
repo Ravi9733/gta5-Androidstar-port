@@ -2,6 +2,8 @@ package io.github.ravi9733.gta5port
 
 import android.app.Activity
 import android.os.Bundle
+import android.os.Handler
+import android.os.HandlerThread
 import android.view.Choreographer
 import android.view.Gravity
 import android.view.Surface
@@ -9,6 +11,7 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.widget.LinearLayout
 import android.widget.TextView
+import java.util.concurrent.atomic.AtomicBoolean
 
 class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCallback {
     companion object { init { System.loadLibrary("gta5port") } }
@@ -22,9 +25,14 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
     private var surfaceReady = false
     private var rendering = false
     private var statusFrameCounter = 0
+    private lateinit var renderThread: HandlerThread
+    private lateinit var renderHandler: Handler
+    private val framePending = AtomicBoolean(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        renderThread = HandlerThread("GTA5-Vulkan").also { it.start() }
+        renderHandler = Handler(renderThread.looper)
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -63,33 +71,49 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
-        status.text = nativeAttachSurface(holder.surface)
         surfaceReady = true
+        renderHandler.post {
+            val message = nativeAttachSurface(holder.surface)
+            runOnUiThread { if (surfaceReady) status.text = message }
+        }
         startFrames()
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-        nativeResizeSurface(width, height)
-        status.text = nativeVulkanStatus()
+        renderHandler.post {
+            nativeResizeSurface(width, height)
+            val message = nativeVulkanStatus()
+            runOnUiThread { if (surfaceReady) status.text = message }
+        }
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         surfaceReady = false
         stopFrames()
-        nativeDetachSurface()
+        renderHandler.post { nativeDetachSurface() }
         status.text = "Vulkan surface closed"
     }
 
     override fun doFrame(frameTimeNanos: Long) {
         if (!rendering || !resumed || !surfaceReady) return
-        nativeRenderFrame()
-        // Surface/driver errors can happen after startup; refresh the diagnostic
-        // text periodically without doing a Kotlin/JNI string allocation per frame.
-        statusFrameCounter++
-        if (statusFrameCounter >= 30) {
-            statusFrameCounter = 0
-            val latest = nativeVulkanStatus()
-            if (status.text.toString() != latest) status.text = latest
+        // Vulkan waits and driver calls stay off the Android UI thread. Drop a
+        // frame instead of queueing work when the GPU/driver is still busy.
+        if (framePending.compareAndSet(false, true)) {
+            renderHandler.post {
+                try {
+                    nativeRenderFrame()
+                    statusFrameCounter++
+                    if (statusFrameCounter >= 30) {
+                        statusFrameCounter = 0
+                        val latest = nativeVulkanStatus()
+                        runOnUiThread {
+                            if (surfaceReady && status.text.toString() != latest) status.text = latest
+                        }
+                    }
+                } finally {
+                    framePending.set(false)
+                }
+            }
         }
         Choreographer.getInstance().postFrameCallback(this)
     }
@@ -110,8 +134,9 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
         stopFrames()
         if (surfaceReady) {
             surfaceReady = false
-            nativeDetachSurface()
+            renderHandler.post { nativeDetachSurface() }
         }
+        renderThread.quitSafely()
         super.onDestroy()
     }
 }
