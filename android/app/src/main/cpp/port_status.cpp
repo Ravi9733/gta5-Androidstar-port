@@ -58,20 +58,23 @@ void destroyAll() {
     gDevice = VK_NULL_HANDLE; gPhysical = VK_NULL_HANDLE; gQueue = VK_NULL_HANDLE;
 }
 bool deviceExtension(VkPhysicalDevice d, const char* name) {
-    uint32_t n=0; vkEnumerateDeviceExtensionProperties(d,nullptr,&n,nullptr);
+    uint32_t n = 0;
+    if (vkEnumerateDeviceExtensionProperties(d, nullptr, &n, nullptr) != VK_SUCCESS || n == 0) return false;
     std::vector<VkExtensionProperties> e(n);
-    vkEnumerateDeviceExtensionProperties(d,nullptr,&n,e.data());
-    return std::any_of(e.begin(),e.end(),[&](const auto& x){return std::string(x.extensionName)==name;});
+    if (vkEnumerateDeviceExtensionProperties(d, nullptr, &n, e.data()) != VK_SUCCESS) return false;
+    return std::any_of(e.begin(), e.end(), [&](const auto& x) {
+        return std::string(x.extensionName) == name;
+    });
 }
 bool makeSwapchain() {
     if (!gDevice || !gWindow) return false;
     destroySwapchain();
     VkSurfaceCapabilitiesKHR caps{};
     if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gPhysical,gSurface,&caps)!=VK_SUCCESS) return false;
-    uint32_t n=0; vkGetPhysicalDeviceSurfaceFormatsKHR(gPhysical,gSurface,&n,nullptr);
-    if (!n) return false;
+    uint32_t n = 0;
+    if (vkGetPhysicalDeviceSurfaceFormatsKHR(gPhysical, gSurface, &n, nullptr) != VK_SUCCESS || n == 0) return false;
     std::vector<VkSurfaceFormatKHR> formats(n);
-    vkGetPhysicalDeviceSurfaceFormatsKHR(gPhysical,gSurface,&n,formats.data());
+    if (vkGetPhysicalDeviceSurfaceFormatsKHR(gPhysical, gSurface, &n, formats.data()) != VK_SUCCESS || n == 0) return false;
     VkSurfaceFormatKHR chosen=formats[0];
     // Some Android surface implementations report one undefined format to mean
     // that the application may choose any supported format.
@@ -120,9 +123,12 @@ bool makeSwapchain() {
     if ((caps.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) == 0) return false;
     sci.presentMode=VK_PRESENT_MODE_FIFO_KHR; sci.clipped=VK_TRUE;
     if (vkCreateSwapchainKHR(gDevice,&sci,nullptr,&gSwapchain)!=VK_SUCCESS) return false;
-    gExtent=extent;
-    vkGetSwapchainImagesKHR(gDevice,gSwapchain,&n,nullptr); gImages.resize(n);
-    vkGetSwapchainImagesKHR(gDevice,gSwapchain,&n,gImages.data());
+    gExtent = extent;
+    n = 0;
+    if (vkGetSwapchainImagesKHR(gDevice, gSwapchain, &n, nullptr) != VK_SUCCESS || n == 0) return false;
+    gImages.resize(n);
+    if (vkGetSwapchainImagesKHR(gDevice, gSwapchain, &n, gImages.data()) != VK_SUCCESS || n == 0) return false;
+    gImages.resize(n);
     VkAttachmentDescription attachment{}; attachment.format=gFormat; attachment.samples=VK_SAMPLE_COUNT_1_BIT;
     attachment.loadOp=VK_ATTACHMENT_LOAD_OP_CLEAR; attachment.storeOp=VK_ATTACHMENT_STORE_OP_STORE;
     attachment.stencilLoadOp=VK_ATTACHMENT_LOAD_OP_DONT_CARE; attachment.stencilStoreOp=VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -170,9 +176,15 @@ extern "C" JNIEXPORT jstring JNICALL Java_io_github_ravi9733_gta5port_MainActivi
  VkAndroidSurfaceCreateInfoKHR si{VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR};si.window=gWindow;
  r=vkCreateAndroidSurfaceKHR(gInstance,&si,nullptr,&gSurface);
  if(r!=VK_SUCCESS){gStatus="Android surface creation failed: "+std::to_string(r);destroyAll();return env->NewStringUTF(gStatus.c_str());}
- uint32_t count=0;vkEnumeratePhysicalDevices(gInstance,&count,nullptr);std::vector<VkPhysicalDevice> ds(count);if(count)vkEnumeratePhysicalDevices(gInstance,&count,ds.data());
+ uint32_t count=0;
+ r=vkEnumeratePhysicalDevices(gInstance,&count,nullptr);
+ if(r!=VK_SUCCESS||count==0){gStatus="No Vulkan physical devices found: "+std::to_string(r);destroyAll();return env->NewStringUTF(gStatus.c_str());}
+ std::vector<VkPhysicalDevice> ds(count);
+ r=vkEnumeratePhysicalDevices(gInstance,&count,ds.data());
+ if(r!=VK_SUCCESS||count==0){gStatus="Vulkan physical-device enumeration failed: "+std::to_string(r);destroyAll();return env->NewStringUTF(gStatus.c_str());}
  for(auto d:ds){uint32_t qn=0;vkGetPhysicalDeviceQueueFamilyProperties(d,&qn,nullptr);std::vector<VkQueueFamilyProperties> qs(qn);vkGetPhysicalDeviceQueueFamilyProperties(d,&qn,qs.data());
-  for(uint32_t q=0;q<qn;q++){VkBool32 present=VK_FALSE;vkGetPhysicalDeviceSurfaceSupportKHR(d,q,gSurface,&present);
+  for(uint32_t q=0;q<qn;q++){VkBool32 present=VK_FALSE;
+   if(vkGetPhysicalDeviceSurfaceSupportKHR(d,q,gSurface,&present)!=VK_SUCCESS)continue;
    if((qs[q].queueFlags&VK_QUEUE_GRAPHICS_BIT)&&present&&deviceExtension(d,VK_KHR_SWAPCHAIN_EXTENSION_NAME)){gPhysical=d;gQueueFamily=q;break;}}
   if(gPhysical)break;
  }
