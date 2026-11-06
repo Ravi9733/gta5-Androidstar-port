@@ -156,14 +156,22 @@ extern "C" JNIEXPORT void JNICALL Java_io_github_ravi9733_gta5port_MainActivity_
  uint32_t index=0;VkResult r=vkAcquireNextImageKHR(gDevice,gSwapchain,UINT64_MAX,gAcquire,VK_NULL_HANDLE,&index);
  if(r==VK_ERROR_OUT_OF_DATE_KHR){makeSwapchain();return;}if(r!=VK_SUCCESS&&r!=VK_SUBOPTIMAL_KHR)return;
  vkResetFences(gDevice,1,&gFence);VkCommandBuffer cmd=gCommands[index];vkResetCommandBuffer(cmd,0);
- VkCommandBufferBeginInfo bi{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};vkBeginCommandBuffer(cmd,&bi);
+ VkCommandBufferBeginInfo bi{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};if(vkBeginCommandBuffer(cmd,&bi)!=VK_SUCCESS)return;
  VkClearValue clear{};float pulse=(float)((gFrames++%240)/240.0);clear.color.float32[0]=0.025f+0.025f*pulse;clear.color.float32[1]=0.045f;clear.color.float32[2]=0.075f;clear.color.float32[3]=1.f;
  VkRenderPassBeginInfo ri{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};ri.renderPass=gRenderPass;ri.framebuffer=gFramebuffers[index];ri.renderArea.extent=gExtent;ri.clearValueCount=1;ri.pClearValues=&clear;
- vkCmdBeginRenderPass(cmd,&ri,VK_SUBPASS_CONTENTS_INLINE);vkCmdEndRenderPass(cmd);vkEndCommandBuffer(cmd);
+ vkCmdBeginRenderPass(cmd,&ri,VK_SUBPASS_CONTENTS_INLINE);vkCmdEndRenderPass(cmd);if(vkEndCommandBuffer(cmd)!=VK_SUCCESS)return;
  VkPipelineStageFlags waitStage=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
  submit.waitSemaphoreCount=1;submit.pWaitSemaphores=&gAcquire;submit.pWaitDstStageMask=&waitStage;submit.commandBufferCount=1;submit.pCommandBuffers=&cmd;submit.signalSemaphoreCount=1;submit.pSignalSemaphores=&gComplete;
- if(vkQueueSubmit(gQueue,1,&submit,gFence)!=VK_SUCCESS)return;
+ vkResetFences(gDevice,1,&gFence);
+ if(vkQueueSubmit(gQueue,1,&submit,gFence)!=VK_SUCCESS){
+  vkDestroyFence(gDevice,gFence,nullptr);VkFenceCreateInfo recovery{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};recovery.flags=VK_FENCE_CREATE_SIGNALED_BIT;gFence=VK_NULL_HANDLE;vkCreateFence(gDevice,&recovery,nullptr,&gFence);return;
+ }
  VkPresentInfoKHR present{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};present.waitSemaphoreCount=1;present.pWaitSemaphores=&gComplete;present.swapchainCount=1;present.pSwapchains=&gSwapchain;present.pImageIndices=&index;
- r=vkQueuePresentKHR(gQueue,&present);if(r==VK_ERROR_OUT_OF_DATE_KHR||r==VK_SUBOPTIMAL_KHR)makeSwapchain();
+ r=vkQueuePresentKHR(gQueue,&present);
+ // This bring-up renderer has one binary semaphore pair. Drain presentation before
+ // reusing the signal semaphore on the next frame; replace with per-frame sync objects
+ // when the real engine renderer is connected.
+ vkQueueWaitIdle(gQueue);
+ if(r==VK_ERROR_OUT_OF_DATE_KHR||r==VK_SUBOPTIMAL_KHR)makeSwapchain();
 }
 extern "C" JNIEXPORT void JNICALL Java_io_github_ravi9733_gta5port_MainActivity_nativeDetachSurface(JNIEnv*,jobject){std::lock_guard<std::mutex> l(gMutex);destroyAll();gStatus="Render surface detached";}
