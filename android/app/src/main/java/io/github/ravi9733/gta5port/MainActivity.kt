@@ -18,6 +18,8 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
     private external fun nativeRenderFrame()
     private external fun nativeDetachSurface()
     private lateinit var status: TextView
+    private var resumed = false
+    private var surfaceReady = false
     private var rendering = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,38 +44,56 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
             setPadding(0, 14, 0, 14)
         }
         val view = SurfaceView(this).apply { holder.addCallback(this@MainActivity) }
-        root.addView(title); root.addView(status)
+        root.addView(title)
+        root.addView(status)
         root.addView(view, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(root)
     }
 
-    override fun surfaceCreated(holder: SurfaceHolder) {
-        status.text = nativeAttachSurface(holder.surface)
+    private fun startFrames() {
+        if (!resumed || !surfaceReady || rendering) return
         rendering = true
         Choreographer.getInstance().postFrameCallback(this)
     }
+
+    private fun stopFrames() {
+        rendering = false
+        Choreographer.getInstance().removeFrameCallback(this)
+    }
+
+    override fun surfaceCreated(holder: SurfaceHolder) {
+        status.text = nativeAttachSurface(holder.surface)
+        surfaceReady = true
+        startFrames()
+    }
+
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         nativeResizeSurface(width, height)
         status.text = nativeVulkanStatus()
     }
+
     override fun surfaceDestroyed(holder: SurfaceHolder) {
-        rendering = false
-        Choreographer.getInstance().removeFrameCallback(this)
+        surfaceReady = false
+        stopFrames()
         nativeDetachSurface()
         status.text = "Vulkan surface closed"
     }
+
     override fun doFrame(frameTimeNanos: Long) {
-        if (!rendering) return
+        if (!rendering || !resumed || !surfaceReady) return
         nativeRenderFrame()
         Choreographer.getInstance().postFrameCallback(this)
     }
+
     override fun onPause() {
-        rendering = false
-        Choreographer.getInstance().removeFrameCallback(this)
+        resumed = false
+        stopFrames()
         super.onPause()
     }
+
     override fun onResume() {
         super.onResume()
-        // Surface callbacks restart rendering when the window is available.
+        resumed = true
+        startFrames()
     }
 }
