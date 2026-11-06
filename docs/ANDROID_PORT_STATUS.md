@@ -9,17 +9,25 @@ This branch is the Android port workstream. The iOS app remains unchanged.
 - Graphics enter through `NativeGraphics.h`; the current implementation in `MetalGraphicsHost.mm` forwards the game's command ring to the Metal renderer.
 - The iOS build depends on Apple frameworks (UIKit, Metal, MetalKit, GameController, AVFAudio, IOSurface) and iOS-specific libarchive packaging.
 
-## Android work plan
+## Android work completed
 
-1. Android ARM64 app + NDK/JNI build pipeline.
-2. Android host services: lifecycle, files/asset access, audio, input/controller, memory/thread primitives, logging.
-3. Vulkan renderer implementing the same command-ring contract exposed by `PGStartGraphics`; Metal remains iOS-only.
-4. Shader pipeline for Android Vulkan and device capability checks.
-5. Real game-file validation and runtime smoke tests on Adreno hardware.
-6. Performance and stability tuning on Snapdragon 8+ Gen 1.
+- ARM64 Android application and NDK/CMake build scaffold.
+- Android `SurfaceView` lifecycle bridged to native code.
+- Vulkan instance and Android surface creation.
+- Physical-device selection requiring a graphics + presentation queue and swapchain support.
+- Vulkan logical device, swapchain, image views, render pass, framebuffers, command buffers, semaphores and fence.
+- Choreographer-driven acquire / clear / submit / present loop, with resize and pause/resume handling.
 
-## Current milestone: scaffold only
+The current Vulkan milestone presents a changing clear-color frame only. It validates the Android Vulkan presentation path; it is not yet the GTA V renderer.
 
-The `android/` project builds an ARM64 Android shell and a JNI library. It intentionally reports that the port is not playable yet. The game engine, host services, Vulkan renderer, shader compiler, and game-file integration have **not** been ported in this milestone.
+## Remaining port work
+
+1. Port Android host services: lifecycle, files/asset access, audio, input/controller, memory/thread primitives and logging.
+2. Implement the Vulkan equivalent of the game's native graphics command-ring consumer currently implemented by the Metal renderer.
+3. Port/compile the shader pipeline for Android Vulkan and verify texture formats, BC compression and render-target behavior.
+4. Integrate the portable ARM64 game engine and connect it to the Android host and Vulkan backend.
+5. Add the iOS-equivalent menus, settings, touch controls and controller UI, backed by the shared engine state.
+6. Validate legally owned game files and run runtime smoke tests on Adreno hardware.
+7. Tune memory, streaming, frame pacing and stability for Snapdragon 8+ Gen 1.
 
 No copyrighted game files are included. Testing requires game files the user legally owns.
