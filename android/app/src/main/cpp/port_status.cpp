@@ -66,6 +66,7 @@ bool deviceExtension(VkPhysicalDevice d, const char* name) {
         return std::string(x.extensionName) == name;
     });
 }
+bool makeSwapchain();
 bool makeSwapchain() {
     if (!gDevice || !gWindow) return false;
     destroySwapchain();
@@ -163,6 +164,26 @@ bool makeSwapchain() {
     if (vkCreateFence(gDevice,&fc,nullptr,&gFence)!=VK_SUCCESS) return false;
     return true;
 }
+bool recreateLostSurface() {
+    if (!gInstance || !gWindow || !gPhysical || !gDevice) return false;
+    vkDeviceWaitIdle(gDevice);
+    destroySwapchain();
+    if (gSurface) {
+        vkDestroySurfaceKHR(gInstance, gSurface, nullptr);
+        gSurface = VK_NULL_HANDLE;
+    }
+    VkAndroidSurfaceCreateInfoKHR surfaceInfo{VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR};
+    surfaceInfo.window = gWindow;
+    if (vkCreateAndroidSurfaceKHR(gInstance, &surfaceInfo, nullptr, &gSurface) != VK_SUCCESS) {
+        return false;
+    }
+    VkBool32 canPresent = VK_FALSE;
+    if (vkGetPhysicalDeviceSurfaceSupportKHR(gPhysical, gQueueFamily, gSurface, &canPresent) != VK_SUCCESS ||
+        !canPresent) {
+        return false;
+    }
+    return makeSwapchain();
+}
 }
 extern "C" JNIEXPORT jstring JNICALL Java_io_github_ravi9733_gta5port_MainActivity_nativeVulkanStatus(JNIEnv* e,jobject){std::lock_guard<std::mutex> l(gMutex);return e->NewStringUTF(gStatus.c_str());}
 extern "C" JNIEXPORT jstring JNICALL Java_io_github_ravi9733_gta5port_MainActivity_nativeAttachSurface(JNIEnv* env,jobject,jobject surface){
@@ -203,7 +224,13 @@ extern "C" JNIEXPORT void JNICALL Java_io_github_ravi9733_gta5port_MainActivity_
  if(!gFence||vkWaitForFences(gDevice,1,&gFence,VK_TRUE,UINT64_MAX)!=VK_SUCCESS)return;
  uint32_t index=0;VkResult r=vkAcquireNextImageKHR(gDevice,gSwapchain,UINT64_MAX,gAcquire,VK_NULL_HANDLE,&index);
  auto recoverSwapchain=[&](const char* reason){if(!makeSwapchain()){destroySwapchain();gStatus=std::string(reason)+"; swapchain rebuild failed";}else{gStatus=std::string(reason)+"; swapchain rebuilt";}};
- if(r==VK_ERROR_OUT_OF_DATE_KHR){recoverSwapchain("Vulkan surface out of date");return;}if(r!=VK_SUCCESS&&r!=VK_SUBOPTIMAL_KHR){gStatus="Vulkan image acquire failed: "+std::to_string(r);return;}
+ if(r==VK_ERROR_OUT_OF_DATE_KHR){recoverSwapchain("Vulkan surface out of date");return;}
+ if(r==VK_ERROR_SURFACE_LOST_KHR){
+  if(recreateLostSurface())gStatus="Android Vulkan surface recreated";
+  else{destroySwapchain();gStatus="Vulkan surface lost; detach and reattach required";}
+  return;
+ }
+ if(r!=VK_SUCCESS&&r!=VK_SUBOPTIMAL_KHR){gStatus="Vulkan image acquire failed: "+std::to_string(r);return;}
  auto recoverAcquiredImage=[&](){recoverSwapchain("Vulkan frame recovery");};
  VkCommandBuffer cmd=gCommands[index];if(vkResetCommandBuffer(cmd,0)!=VK_SUCCESS){recoverAcquiredImage();return;}
  VkCommandBufferBeginInfo bi{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};if(vkBeginCommandBuffer(cmd,&bi)!=VK_SUCCESS){recoverAcquiredImage();return;}
@@ -221,11 +248,18 @@ extern "C" JNIEXPORT void JNICALL Java_io_github_ravi9733_gta5port_MainActivity_
  }
  VkPresentInfoKHR present{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};present.waitSemaphoreCount=1;present.pWaitSemaphores=&gComplete[index];present.swapchainCount=1;present.pSwapchains=&gSwapchain;present.pImageIndices=&index;
  r=vkQueuePresentKHR(gQueue,&present);
+ if(r==VK_ERROR_SURFACE_LOST_KHR){
+  if(recreateLostSurface())gStatus="Android Vulkan surface recreated after present";
+  else{destroySwapchain();gStatus="Vulkan surface lost during present; detach and reattach required";}
+  return;
+ }
  if(r!=VK_SUCCESS&&r!=VK_SUBOPTIMAL_KHR&&r!=VK_ERROR_OUT_OF_DATE_KHR){
   gStatus="Vulkan present failed: "+std::to_string(r);recoverAcquiredImage();return;
  }
  // The render-finished semaphore belongs to this swapchain image. It is not reused
  // until that image is acquired again, avoiding a queue-wide stall on every frame.
- if(r==VK_ERROR_OUT_OF_DATE_KHR||r==VK_SUBOPTIMAL_KHR)makeSwapchain();
+ if(r==VK_ERROR_OUT_OF_DATE_KHR||r==VK_SUBOPTIMAL_KHR){
+  if(!makeSwapchain()){destroySwapchain();gStatus="Vulkan present requested swapchain rebuild; rebuild failed";}
+ }
 }
 extern "C" JNIEXPORT void JNICALL Java_io_github_ravi9733_gta5port_MainActivity_nativeDetachSurface(JNIEnv*,jobject){std::lock_guard<std::mutex> l(gMutex);destroyAll();gStatus="Render surface detached";}
