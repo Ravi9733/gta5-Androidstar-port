@@ -20,7 +20,8 @@ VkFormat gFormat = VK_FORMAT_UNDEFINED;
 VkExtent2D gExtent{};
 VkRenderPass gRenderPass = VK_NULL_HANDLE;
 VkCommandPool gCommandPool = VK_NULL_HANDLE;
-VkSemaphore gAcquire = VK_NULL_HANDLE, gComplete = VK_NULL_HANDLE;
+VkSemaphore gAcquire = VK_NULL_HANDLE;
+std::vector<VkSemaphore> gComplete;
 VkFence gFence = VK_NULL_HANDLE;
 std::vector<VkImage> gImages;
 std::vector<VkImageView> gViews;
@@ -38,12 +39,12 @@ void destroySwapchain() {
     if (gRenderPass) vkDestroyRenderPass(gDevice, gRenderPass, nullptr);
     if (gCommandPool) vkDestroyCommandPool(gDevice, gCommandPool, nullptr);
     if (gAcquire) vkDestroySemaphore(gDevice, gAcquire, nullptr);
-    if (gComplete) vkDestroySemaphore(gDevice, gComplete, nullptr);
+    for (auto semaphore : gComplete) if (semaphore) vkDestroySemaphore(gDevice, semaphore, nullptr);
     if (gFence) vkDestroyFence(gDevice, gFence, nullptr);
     if (gSwapchain) vkDestroySwapchainKHR(gDevice, gSwapchain, nullptr);
     gFramebuffers.clear(); gViews.clear(); gImages.clear(); gCommands.clear();
     gRenderPass = VK_NULL_HANDLE; gCommandPool = VK_NULL_HANDLE;
-    gAcquire = gComplete = VK_NULL_HANDLE; gFence = VK_NULL_HANDLE;
+    gAcquire = VK_NULL_HANDLE; gComplete.clear(); gFence = VK_NULL_HANDLE;
     gSwapchain = VK_NULL_HANDLE;
 }
 void destroyAll() {
@@ -116,7 +117,11 @@ bool makeSwapchain() {
     VkCommandBufferAllocateInfo ca{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO}; ca.commandPool=gCommandPool; ca.level=VK_COMMAND_BUFFER_LEVEL_PRIMARY; ca.commandBufferCount=n;
     gCommands.resize(n); if (vkAllocateCommandBuffers(gDevice,&ca,gCommands.data())!=VK_SUCCESS) return false;
     VkSemaphoreCreateInfo sem{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-    if (vkCreateSemaphore(gDevice,&sem,nullptr,&gAcquire)!=VK_SUCCESS || vkCreateSemaphore(gDevice,&sem,nullptr,&gComplete)!=VK_SUCCESS) return false;
+    if (vkCreateSemaphore(gDevice,&sem,nullptr,&gAcquire)!=VK_SUCCESS) return false;
+    gComplete.resize(n, VK_NULL_HANDLE);
+    for (auto &semaphore : gComplete) {
+        if (vkCreateSemaphore(gDevice,&sem,nullptr,&semaphore)!=VK_SUCCESS) return false;
+    }
     VkFenceCreateInfo fc{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO}; fc.flags=VK_FENCE_CREATE_SIGNALED_BIT;
     if (vkCreateFence(gDevice,&fc,nullptr,&gFence)!=VK_SUCCESS) return false;
     return true;
@@ -161,17 +166,15 @@ extern "C" JNIEXPORT void JNICALL Java_io_github_ravi9733_gta5port_MainActivity_
  VkRenderPassBeginInfo ri{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};ri.renderPass=gRenderPass;ri.framebuffer=gFramebuffers[index];ri.renderArea.extent=gExtent;ri.clearValueCount=1;ri.pClearValues=&clear;
  vkCmdBeginRenderPass(cmd,&ri,VK_SUBPASS_CONTENTS_INLINE);vkCmdEndRenderPass(cmd);if(vkEndCommandBuffer(cmd)!=VK_SUCCESS)return;
  VkPipelineStageFlags waitStage=VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
- submit.waitSemaphoreCount=1;submit.pWaitSemaphores=&gAcquire;submit.pWaitDstStageMask=&waitStage;submit.commandBufferCount=1;submit.pCommandBuffers=&cmd;submit.signalSemaphoreCount=1;submit.pSignalSemaphores=&gComplete;
+ submit.waitSemaphoreCount=1;submit.pWaitSemaphores=&gAcquire;submit.pWaitDstStageMask=&waitStage;submit.commandBufferCount=1;submit.pCommandBuffers=&cmd;submit.signalSemaphoreCount=1;submit.pSignalSemaphores=&gComplete[index];
  vkResetFences(gDevice,1,&gFence);
  if(vkQueueSubmit(gQueue,1,&submit,gFence)!=VK_SUCCESS){
   vkDestroyFence(gDevice,gFence,nullptr);VkFenceCreateInfo recovery{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};recovery.flags=VK_FENCE_CREATE_SIGNALED_BIT;gFence=VK_NULL_HANDLE;vkCreateFence(gDevice,&recovery,nullptr,&gFence);return;
  }
- VkPresentInfoKHR present{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};present.waitSemaphoreCount=1;present.pWaitSemaphores=&gComplete;present.swapchainCount=1;present.pSwapchains=&gSwapchain;present.pImageIndices=&index;
+ VkPresentInfoKHR present{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};present.waitSemaphoreCount=1;present.pWaitSemaphores=&gComplete[index];present.swapchainCount=1;present.pSwapchains=&gSwapchain;present.pImageIndices=&index;
  r=vkQueuePresentKHR(gQueue,&present);
- // This bring-up renderer has one binary semaphore pair. Drain presentation before
- // reusing the signal semaphore on the next frame; replace with per-frame sync objects
- // when the real engine renderer is connected.
- vkQueueWaitIdle(gQueue);
+ // The render-finished semaphore belongs to this swapchain image. It is not reused
+ // until that image is acquired again, avoiding a queue-wide stall on every frame.
  if(r==VK_ERROR_OUT_OF_DATE_KHR||r==VK_SUBOPTIMAL_KHR)makeSwapchain();
 }
 extern "C" JNIEXPORT void JNICALL Java_io_github_ravi9733_gta5port_MainActivity_nativeDetachSurface(JNIEnv*,jobject){std::lock_guard<std::mutex> l(gMutex);destroyAll();gStatus="Render surface detached";}
