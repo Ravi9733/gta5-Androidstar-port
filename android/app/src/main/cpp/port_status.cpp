@@ -201,7 +201,10 @@ extern "C" JNIEXPORT void JNICALL Java_io_github_ravi9733_gta5port_MainActivity_
  submit.waitSemaphoreCount=1;submit.pWaitSemaphores=&gAcquire;submit.pWaitDstStageMask=&waitStage;submit.commandBufferCount=1;submit.pCommandBuffers=&cmd;submit.signalSemaphoreCount=1;submit.pSignalSemaphores=&gComplete[index];
  if(vkResetFences(gDevice,1,&gFence)!=VK_SUCCESS){recoverAcquiredImage();return;}
  if(vkQueueSubmit(gQueue,1,&submit,gFence)!=VK_SUCCESS){
-  vkDestroyFence(gDevice,gFence,nullptr);VkFenceCreateInfo recovery{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};recovery.flags=VK_FENCE_CREATE_SIGNALED_BIT;gFence=VK_NULL_HANDLE;vkCreateFence(gDevice,&recovery,nullptr,&gFence);return;
+  // The acquire semaphore was not consumed by a successful queue submission.
+  // Rebuild the swapchain so neither that semaphore nor the acquired image is reused.
+  recoverAcquiredImage();
+  return;
  }
  VkPresentInfoKHR present{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};present.waitSemaphoreCount=1;present.pWaitSemaphores=&gComplete[index];present.swapchainCount=1;present.pSwapchains=&gSwapchain;present.pImageIndices=&index;
  r=vkQueuePresentKHR(gQueue,&present);
