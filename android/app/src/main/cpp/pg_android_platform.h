@@ -6,9 +6,9 @@
 extern "C" {
 #endif
 
-// Android replacements for the small set of process services currently supplied
-// by Apple's os/proc and mach APIs in EngineHost.c.
-uint64_t PGAndroidProcessAvailableMemory(void);
+// Android process metrics. Resident memory is the current RSS, not free memory
+// and not a promise of how much additional memory Android will permit.
+uint64_t PGAndroidResidentMemory(void);
 uint64_t PGAndroidPhysicalMemory(void);
 
 #ifdef __cplusplus
