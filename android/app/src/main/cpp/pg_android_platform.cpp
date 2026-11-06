@@ -43,6 +43,8 @@ static bool readCgroupValue(const char* path, uint64_t* out, bool allowUnlimited
     char* begin = value;
     while (*begin == ' ' || *begin == '\t') ++begin;
     if (allowUnlimited && std::strncmp(begin, "max", 3) == 0) return false;
+    // cgroup counters are unsigned decimal byte counts; reject signs and junk.
+    if (*begin < '0' || *begin > '9') return false;
 
     char* parseEnd = nullptr;
     const unsigned long long parsed = std::strtoull(begin, &parseEnd, 10);
