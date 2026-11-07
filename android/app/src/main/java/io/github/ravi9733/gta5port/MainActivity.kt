@@ -1,7 +1,9 @@
 package io.github.ravi9733.gta5port
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
+import android.net.Uri
 import android.os.Handler
 import android.os.HandlerThread
 import android.view.Choreographer
@@ -14,7 +16,7 @@ import android.widget.TextView
 import java.util.concurrent.atomic.AtomicBoolean
 
 class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCallback {
-    companion object { init { System.loadLibrary("gta5port") } }
+    companion object { private const val REQUEST_IMPORT_MOD = 7101; init { System.loadLibrary("gta5port") } }
     private external fun nativeVulkanStatus(): String
     private external fun nativeAttachSurface(surface: Surface): String
     private external fun nativeResizeSurface(width: Int, height: Int)
@@ -55,8 +57,36 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
         val view = SurfaceView(this).apply { holder.addCallback(this@MainActivity) }
         root.addView(title)
         root.addView(status)
+        val importMod = android.widget.Button(this).apply {
+            text = "Import mod file"
+            setOnClickListener {
+                val picker = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "*/*"
+                }
+                startActivityForResult(picker, REQUEST_IMPORT_MOD)
+            }
+        }
+        root.addView(importMod)
         root.addView(view, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(root)
+    }
+
+    @Deprecated("Uses the platform document picker for broad Android compatibility")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQUEST_IMPORT_MOD || resultCode != Activity.RESULT_OK) return
+        val uri: Uri = data?.data ?: return
+        Thread {
+            try {
+                val imported = AndroidModStore.import(this, uri)
+                runOnUiThread {
+                    status.text = "Imported " + imported.displayName + " (" + imported.bytes + " bytes). Stored in Mods/Imported; engine loading is not connected yet."
+                }
+            } catch (error: Exception) {
+                runOnUiThread { status.text = "Mod import failed: " + (error.message ?: "unknown error") }
+            }
+        }.start()
     }
 
     private fun startFrames() {
