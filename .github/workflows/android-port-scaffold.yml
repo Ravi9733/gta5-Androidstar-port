@@ -2,11 +2,6 @@ name: Android port scaffold
 
 on:
   workflow_dispatch:
-  push:
-    branches: [android-vulkan-port]
-    paths:
-      - "android/**"
-      - ".github/workflows/android-port-scaffold.yml"
 
 jobs:
   build-arm64-debug:
