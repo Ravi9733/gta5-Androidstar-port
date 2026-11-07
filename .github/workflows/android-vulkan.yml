@@ -1,16 +1,6 @@
 name: Android Vulkan bootstrap
 
 on:
-  push:
-    branches: [android-vulkan-port]
-    paths:
-      - "android/**"
-      - ".github/workflows/android-vulkan.yml"
-  pull_request:
-    branches: [main]
-    paths:
-      - "android/**"
-      - ".github/workflows/android-vulkan.yml"
   workflow_dispatch:
 
 permissions:
