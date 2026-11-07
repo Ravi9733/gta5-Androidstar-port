@@ -23,6 +23,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
     private external fun nativeRenderFrame()
     private external fun nativeDetachSurface()
     private lateinit var status: TextView
+    private lateinit var modList: TextView
     private var resumed = false
     private var surfaceReady = false
     private var rendering = false
@@ -68,7 +69,20 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
             }
         }
         root.addView(importMod)
+        val refreshMods = android.widget.Button(this).apply {
+            text = "Refresh imported mods"
+            setOnClickListener { refreshModList() }
+        }
+        root.addView(refreshMods)
+        modList = TextView(this).apply {
+            text = "Imported mods: loading…"
+            textSize = 12f
+            setTextColor(0xFFB8C7D9.toInt())
+            setPadding(4, 6, 4, 10)
+        }
+        root.addView(modList)
         root.addView(view, LinearLayout.LayoutParams(-1, 0, 1f))
+        refreshModList()
         setContentView(root)
     }
 
@@ -81,12 +95,35 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
             try {
                 val imported = AndroidModStore.importFile(this, uri)
                 runOnUiThread {
-                    status.text = "Imported " + imported.displayName + " (" + imported.bytes + " bytes). Stored in Mods/Imported; engine loading is not connected yet."
+                    status.text = "Imported " + imported.displayName + " (" + imported.bytes + " bytes). Engine loading is not connected yet."
+                    refreshModList()
                 }
             } catch (error: Exception) {
                 runOnUiThread { status.text = "Mod import failed: " + (error.message ?: "unknown error") }
             }
         }.start()
+    }
+
+    private fun refreshModList() {
+        try {
+            val files = AndroidModStore.list(this)
+            modList.text = if (files.isEmpty()) {
+                "Imported mods: 0"
+            } else {
+                "Imported mods: ${files.size}\n" + files.take(8).joinToString("\n") { file ->
+                    val kind = when (file.extension.lowercase()) {
+                        "zip", "7z", "rar" -> "archive"
+                        "oiv" -> "OpenIV package"
+                        "asi", "dll", "so" -> "native plugin (not loadable yet)"
+                        "rpf" -> "RPF archive (not mounted yet)"
+                        else -> "file"
+                    }
+                    "• ${file.name} — ${android.text.format.Formatter.formatShortFileSize(this, file.length())} — ${kind}"
+                } + if (files.size > 8) "\n…and ${files.size - 8} more" else ""
+            }
+        } catch (error: Exception) {
+            modList.text = "Could not read imported mods: ${error.message ?: "unknown error"}"
+        }
     }
 
     private fun startFrames() {
