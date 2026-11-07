@@ -79,7 +79,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
         val uri: Uri = data?.data ?: return
         Thread {
             try {
-                val imported = AndroidModStore.import(this, uri)
+                val imported = AndroidModStore.importFile(this, uri)
                 runOnUiThread {
                     status.text = "Imported " + imported.displayName + " (" + imported.bytes + " bytes). Stored in Mods/Imported; engine loading is not connected yet."
                 }
