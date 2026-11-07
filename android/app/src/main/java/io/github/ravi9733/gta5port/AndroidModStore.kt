@@ -21,7 +21,7 @@ object AndroidModStore {
             if (!exists() && !mkdirs()) throw IllegalStateException("Cannot create Mods folder")
         }
 
-    fun import(context: Context, uri: Uri): Imported {
+    fun importFile(context: Context, uri: Uri): Imported {
         val resolver = context.contentResolver
         val displayName = queryName(resolver, uri) ?: "mod-" + System.currentTimeMillis()
         val destination = uniqueFile(root(context), sanitize(displayName))
