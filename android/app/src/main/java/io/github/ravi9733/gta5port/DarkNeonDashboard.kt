@@ -3,6 +3,10 @@ package io.github.ravi9733.gta5port
 import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Color
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
@@ -35,6 +39,7 @@ class DarkNeonDashboard(
 
     private val page = LinearLayout(context)
     private val accent = Color.rgb(190, 86, 255)
+    private val neon = 0xFFB7FF4A.toInt()
     private val muted = Color.rgb(166, 153, 190)
     private val panel = Color.rgb(25, 18, 39)
     private val navItems = mutableListOf<TextView>()
@@ -110,8 +115,8 @@ class DarkNeonDashboard(
         }
         right.addView(top, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(54)))
         val heading = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        heading.addView(label("GRAND THEFT AUTO V", 19f, Color.WHITE, true))
-        heading.addView(label("ANDROID PORT  •  v1.6.2", 10f, accent, true))
+        heading.addView(label("FIVE STAR PORT", 20f, Color.WHITE, true))
+        heading.addView(label("GRAND THEFT AUTO V  •  ANDROID EDITION", 10f, 0xFFB7FF4A.toInt(), true))
         top.addView(heading, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
         listOf("ABOUT", "GAME FILES", "EXIT").forEach { title ->
             val b = smallButton(title)
@@ -170,8 +175,26 @@ class DarkNeonDashboard(
     }
 
     private fun buildHome() {
-        page.addView(label("WELCOME BACK", 12f, accent, true))
-        page.addView(label("Choose your experience", 25f, Color.WHITE, true), margin(0, 4, 0, 12))
+        page.addView(label("WELCOME TO LOS SANTOS", 11f, 0xFFB7FF4A.toInt(), true))
+        page.addView(label("YOUR CITY. YOUR STORY.", 25f, Color.WHITE, true), margin(0, 3, 0, 8))
+        val hero = FrameLayout(context).apply {
+            background = gradient(intArrayOf(0xFF34204D.toInt(), 0xFF11101D.toInt()), 18)
+            clipToOutline = true
+            elevation = dp(4).toFloat()
+        }
+        hero.addView(LosSantosHeroArt(context), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        val heroCopy = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.BOTTOM
+            setPadding(dp(18), dp(12), dp(18), dp(14))
+        }
+        heroCopy.addView(label("LOS SANTOS", 11f, 0xFFB7FF4A.toInt(), true))
+        heroCopy.addView(label("THE CITY IS YOURS", 22f, Color.WHITE, true), margin(0, 3, 0, 0))
+        heroCopy.addView(label("FIVE STAR PORT  •  MOBILE EXPERIENCE", 9f, 0xFFE3D9F1.toInt(), true), margin(0, 2, 0, 0))
+        hero.addView(heroCopy, FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        page.addView(hero, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(164)).apply {
+            bottomMargin = dp(12)
+        })
         val cards = listOf(
             Triple("STORY MODE", "Start the single-player experience", "STORY"),
             Triple("SANDBOX", "Explore the open-world mode", "SANDBOX"),
@@ -182,11 +205,11 @@ class DarkNeonDashboard(
         val cardRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
         cards.forEachIndexed { index, data ->
             val card = makeCard(data.first, data.second, index + 1)
-            cardRow.addView(card, LinearLayout.LayoutParams(0, dp(158), 1f).apply {
-                if (index > 0) leftMargin = dp(7)
+            cardRow.addView(card, LinearLayout.LayoutParams(0, dp(142), 1f).apply {
+                if (index > 0) leftMargin = dp(8)
             })
         }
-        page.addView(cardRow, margin(0, 4, 0, 12))
+        page.addView(cardRow, margin(0, 0, 0, 12))
         val info = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
         }
@@ -204,22 +227,28 @@ class DarkNeonDashboard(
             background = gradient(
                 intArrayOf(
                     when (index) {
-                        1 -> 0xFF45205E.toInt()
-                        2 -> 0xFF242C55.toInt()
-                        3 -> 0xFF34214D.toInt()
-                        4 -> 0xFF51244E.toInt()
-                        else -> 0xFF253B52.toInt()
+                        1 -> 0xFF59316F.toInt()
+                        2 -> 0xFF303D68.toInt()
+                        3 -> 0xFF49315F.toInt()
+                        4 -> 0xFF65305B.toInt()
+                        else -> 0xFF28566A.toInt()
                     },
                     0xFF171020.toInt()
-                ), 17
+                ), 15
             )
             isClickable = true
             isFocusable = true
             elevation = dp(3).toFloat()
         }
-        val glyph = arrayOf("▶", "◇", "⚡", "✦", "♫")[(index - 1).coerceIn(0, 4)]
-        card.addView(label(glyph, 25f, Color.WHITE, true), LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
-        card.addView(label(title, 13f, Color.WHITE, true))
+        val art = FrameLayout(context).apply {
+            background = transparentRounded(10)
+            clipToOutline = true
+        }
+        art.addView(CardArtView(context, index), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        card.addView(art, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f).apply {
+            bottomMargin = dp(8)
+        })
+        card.addView(label(title, 12f, Color.WHITE, true))
         card.addView(label(subtitle, 10f, 0xFFD0C4DC.toInt(), false), margin(0, 4, 0, 0))
         card.setOnClickListener {
             when (index) {
@@ -396,4 +425,95 @@ class DarkNeonDashboard(
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+}
+
+/** Lightweight native vector artwork: a Los Santos skyline, sunset and sports car. */
+private class LosSantosHeroArt(context: Context) : View(context) {
+    private val p = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val w = width.toFloat()
+        val h = height.toFloat()
+        p.shader = android.graphics.LinearGradient(0f, 0f, w, h,
+            intArrayOf(0xFF7C3C91.toInt(), 0xFF30234F.toInt(), 0xFF101321.toInt()),
+            null, android.graphics.Shader.TileMode.CLAMP)
+        canvas.drawRect(0f, 0f, w, h, p)
+        p.shader = null
+
+        p.color = 0xFFFFA65A.toInt()
+        canvas.drawCircle(w * .78f, h * .28f, h * .19f, p)
+        p.color = 0x44301B48
+        canvas.drawRect(0f, h * .60f, w, h, p)
+
+        // Layered city blocks and towers.
+        val buildings = floatArrayOf(
+            .00f,.43f,.09f,.77f, .07f,.34f,.16f,.78f, .14f,.49f,.22f,.80f,
+            .22f,.39f,.30f,.82f, .29f,.28f,.36f,.82f, .35f,.44f,.43f,.80f,
+            .43f,.35f,.51f,.84f, .50f,.48f,.58f,.83f, .57f,.31f,.65f,.82f,
+            .64f,.42f,.73f,.84f, .72f,.35f,.80f,.83f, .79f,.48f,.87f,.82f,
+            .86f,.38f,.94f,.83f, .93f,.51f,1f,.82f
+        )
+        p.color = 0xFF17172D.toInt()
+        var i = 0
+        while (i < buildings.size) {
+            canvas.drawRect(buildings[i] * w, buildings[i+1] * h,
+                buildings[i+2] * w, buildings[i+3] * h, p)
+            i += 4
+        }
+        p.color = 0xFFFFD47A.toInt()
+        for (x in 0..18) for (y in 0..3) {
+            val xx = (x * .052f + .018f) * w
+            val yy = (.52f + y * .065f) * h
+            canvas.drawRect(xx, yy, xx + w * .009f, yy + h * .018f, p)
+        }
+
+        // Three stylized foreground figures and a low sports car silhouette.
+        p.color = 0xFF10101B.toInt()
+        val people = arrayOf(.23f, .36f, .49f)
+        for (x in people) {
+            canvas.drawCircle(x * w, h * .58f, h * .055f, p)
+            canvas.drawRoundRect(RectF((x-.055f)*w, h*.63f, (x+.055f)*w, h*.98f),
+                h*.035f, h*.035f, p)
+        }
+        p.color = 0xFF080B13.toInt()
+        val car = Path().apply {
+            moveTo(w*.53f, h*.88f); lineTo(w*.60f, h*.78f)
+            lineTo(w*.76f, h*.76f); lineTo(w*.86f, h*.86f)
+            lineTo(w*.94f, h*.89f); lineTo(w*.96f, h*.98f)
+            lineTo(w*.52f, h*.98f); close()
+        }
+        canvas.drawPath(car, p)
+        p.color = 0xFFB7FF4A.toInt()
+        canvas.drawCircle(w*.63f, h*.98f, h*.045f, p)
+        canvas.drawCircle(w*.87f, h*.98f, h*.045f, p)
+    }
+}
+
+private class CardArtView(context: Context, private val variant: Int) : View(context) {
+    private val p = Paint(Paint.ANTI_ALIAS_FLAG)
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val w = width.toFloat(); val h = height.toFloat()
+        val palettes = arrayOf(
+            intArrayOf(0xFF9C4B78.toInt(), 0xFF24172F.toInt()),
+            intArrayOf(0xFF4C76A5.toInt(), 0xFF17223A.toInt()),
+            intArrayOf(0xFF9A63C5.toInt(), 0xFF20172F.toInt()),
+            intArrayOf(0xFFB34D82.toInt(), 0xFF29162C.toInt()),
+            intArrayOf(0xFF3C9A9A.toInt(), 0xFF14242D.toInt())
+        )
+        val colors = palettes[(variant - 1).coerceIn(0, 4)]
+        p.shader = android.graphics.LinearGradient(0f, 0f, w, h, colors[0], colors[1],
+            android.graphics.Shader.TileMode.CLAMP)
+        canvas.drawRect(0f, 0f, w, h, p); p.shader = null
+        p.color = 0x553B204F
+        canvas.drawCircle(w*.76f, h*.30f, h*.42f, p)
+        p.color = 0xFFB7FF4A.toInt()
+        p.textSize = h*.34f
+        p.typeface = Typeface.create("sans-serif-black", Typeface.BOLD)
+        val glyphs = arrayOf("V", "◇", "⚡", "✦", "♫")
+        canvas.drawText(glyphs[(variant - 1).coerceIn(0, 4)], w*.08f, h*.62f, p)
+        p.color = 0x55FFFFFF
+        canvas.drawRect(0f, h*.84f, w, h, p)
+    }
 }
