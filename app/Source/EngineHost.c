@@ -15,6 +15,7 @@ static void pg_mod_test_recheck(void);
 #include <string.h>
 #include <strings.h>
 #include <sys/mman.h>
+#include <dlfcn.h>
 #if defined(__ANDROID__)
 // Darwin's reusable-page advice has no direct Android equivalent.
 // MADV_FREE gives Linux the same lazy-reclaim intent; page reuse is handled
@@ -3645,7 +3646,9 @@ void PGStartEngine(const char *path, const char *filesRoot, PGLogCallback callba
 }
 
 #include <execinfo.h>
+#if defined(__APPLE__)
 #include <mach-o/dyld.h>
+#endif
 // The last indirect call that failed the fast check on this thread (Scripts/prepare_trap_context.py).
 static _Thread_local const char *indirectFunction;
 static _Thread_local uint32_t indirectIndex,indirectSize;
@@ -4290,7 +4293,13 @@ const char *pg_app_symbol(uintptr_t pc);
 void pg_record_trap(int code) {
   pg_invoke_top=NULL; // the trap leaves every invoke_* on this thread, so their jump points are gone
   void *frames[20];int count=backtrace(frames,20);char line[160];
-  snprintf(line,sizeof line,"Native trap %d; app image base %p",code,_dyld_get_image_header(0));pg_log(line);
+#if defined(__APPLE__)
+  void *imageBase=(void *)_dyld_get_image_header(0);
+#else
+  Dl_info imageInfo={0};
+  void *imageBase=dladdr((void *)&pg_record_trap,&imageInfo)?imageInfo.dli_fbase:NULL;
+#endif
+  snprintf(line,sizeof line,"Native trap %d; app image base %p",code,imageBase);pg_log(line);
   // Names the engine function (w2c_game_fN) for an invalid indirect call, which native frames can't do.
   if(code==WASM_RT_TRAP_CALL_INDIRECT&&indirectFunction){snprintf(line,sizeof line,"  indirect call in %s, table index %u of %u",indirectFunction,indirectIndex,indirectSize);pg_log(line);}
   for(int i=0;i<count;i++){snprintf(line,sizeof line,"  native frame %d: %p",i,frames[i]);pg_log(line);}
