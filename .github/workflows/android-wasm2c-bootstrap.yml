@@ -32,10 +32,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential python3 zlib1g-dev libbz2-dev libssl-dev
 
-      - name: Install Android NDK
-        uses: android-actions/setup-android@v3
-        with:
-          ndk-version: 27.2.12479018
+      - name: Locate preinstalled Android NDK
+        run: |
+          NDK="${ANDROID_NDK_LATEST_HOME:-}"
+          if [ -z "$NDK" ] || [ ! -d "$NDK" ]; then
+            NDK="$(find "$ANDROID_HOME/ndk" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort -V | tail -n 1)"
+          fi
+          test -n "$NDK" && test -d "$NDK"
+          echo "ANDROID_NDK_HOME=$NDK" >> "$GITHUB_ENV"
+          echo "Using Android NDK: $NDK"
 
       - name: Build pinned custom WABT wasm2c host tool
         run: |
