@@ -110,3 +110,10 @@ The Linux host toolchain mode was built successfully by GitHub Actions on 2026-1
 - Strengthened the runtime-hook test: it now verifies the generated source has no escaped-newline artifact and compiles the fixture with the host C compiler in syntax-only mode.
 - CI run `42505035238` passed with the hardened pipeline test, pinned wasm2c host toolchain, futex source check, and Android ARM64/Bionic API probe.
 - This is build-pipeline hardening only. It does not mean the full proprietary game WASM has been generated or that the Android game engine is linked/playable.
+
+
+## Real Android ARM64 native library build (2026-11-08)
+
+- Added `test_android_native_build.py`, which configures the repository's actual `android/app/src/main/cpp/CMakeLists.txt` with the installed NDK CMake toolchain for `arm64-v8a`, API 29, then builds the shared library.
+- CI run `42505207893` passed. The real CMake target compiled `port_status.cpp` and `pg_android_platform.cpp`, linked Vulkan/Android system libraries, and produced `libgta5port.so` (1,897,552 bytes).
+- This is the Android Vulkan scaffold library only. `EngineHost.c`, generated game C, audio/input adapters, and a Vulkan translation of the iOS Metal renderer are still not part of this target; no gameplay APK is implied.
