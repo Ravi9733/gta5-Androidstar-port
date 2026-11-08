@@ -34,3 +34,21 @@ jobs:
         run: |
           test -x app/Tools/wasm2c-native
           app/Tools/wasm2c-native --help
+
+      - name: Validate Android engine preparation scripts
+        run: |
+          python3 -m py_compile app/Scripts/prepare_android_wasm2c.py app/Scripts/prepare_android_engine.py
+          python3 - <<'PY'
+          from pathlib import Path
+          import ast
+          source = Path("app/Scripts/prepare_android_engine.py").read_text()
+          tree = ast.parse(source)
+          stages = next(node.value for node in ast.walk(tree)
+                        if isinstance(node, ast.Assign)
+                        and any(isinstance(t, ast.Name) and t.id == "PATCH_STAGES" for t in node.targets))
+          names = [item.value.split(":")[0] for item in stages.elts]
+          missing = [name for name in names if not (Path("app/Scripts") / name).is_file()]
+          if missing:
+              raise SystemExit("Missing preparation stages: " + ", ".join(missing))
+          print(f"Validated {len(names)} ordered engine patch stages.")
+          PY
