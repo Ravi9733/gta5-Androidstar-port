@@ -14,6 +14,7 @@ import android.view.Gravity
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import java.util.concurrent.atomic.AtomicBoolean
@@ -43,6 +44,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_LAYOUT_STABLE)
         renderThread = HandlerThread("GTA5-Vulkan").also { it.start() }
         renderHandler = Handler(renderThread.looper)
         gameSurface = SurfaceView(this).apply { holder.addCallback(this@MainActivity) }
