@@ -79,13 +79,34 @@ extern "C" uint64_t PGAndroidCgroupMemoryHeadroom(void) {
 }
 
 
-extern "C" uint64_t PGAndroidAvailableMemoryEstimate(void) {
-    // Prefer the actual finite memory-controller headroom when the device exposes it.
-    const uint64_t cgroup = PGAndroidCgroupMemoryHeadroom();
-    if (cgroup != 0) return cgroup;
+namespace {
+static uint64_t androidMemAvailable(void) {
+    FILE* file = std::fopen("/proc/meminfo", "r");
+    if (!file) return 0;
+    char line[256];
+    uint64_t availableKb = 0;
+    while (std::fgets(line, sizeof(line), file)) {
+        unsigned long long value = 0;
+        if (std::sscanf(line, "MemAvailable: %llu kB", &value) == 1) {
+            availableKb = static_cast<uint64_t>(value);
+            break;
+        }
+    }
+    std::fclose(file);
+    return availableKb * 1024ull;
+}
+}
 
-    // Android does not expose a portable Jetsam-equivalent process limit.
-    // Fall back to a clearly approximate physical-RAM-minus-RSS estimate.
+extern "C" uint64_t PGAndroidAvailableMemoryEstimate(void) {
+    // MemAvailable is a system-wide estimate, not an Android per-process kill limit.
+    // If a finite cgroup limit exists, use the tighter of the two headroom values.
+    const uint64_t systemAvailable = androidMemAvailable();
+    const uint64_t cgroup = PGAndroidCgroupMemoryHeadroom();
+    if (systemAvailable && cgroup) return systemAvailable < cgroup ? systemAvailable : cgroup;
+    if (systemAvailable) return systemAvailable;
+    if (cgroup) return cgroup;
+
+    // Last-resort fallback only: this can overestimate headroom on Android.
     const uint64_t physical = PGAndroidPhysicalMemory();
     const uint64_t resident = PGAndroidResidentMemory();
     return physical > resident ? physical - resident : 0;
