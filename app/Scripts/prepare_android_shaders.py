@@ -40,8 +40,8 @@ def main():
         index = json.loads(index_path.read_text(encoding="utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise SystemExit(f"Invalid shader index: {exc}")
-    if not isinstance(index, dict) or not isinstance(index.get("_packs"), dict):
-        raise SystemExit("Shader index must be an object with an _packs map")
+    if not isinstance(index, dict) or not isinstance(index.get("_packs"), (dict, list)):
+        raise SystemExit("Shader index must be an object with an _packs map or list")
 
     # The upstream unpacker remains the single source of truth for pack offsets.
     unpacked = out / "wgsl"
