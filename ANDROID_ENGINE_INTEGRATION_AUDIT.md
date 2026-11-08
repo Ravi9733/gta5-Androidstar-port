@@ -67,3 +67,10 @@ It then pins WABT 1.0.42, downloads the WABT C writer and wasm2c driver sources,
 The next implementation unit is a Linux-hosted generator, not a direct CMake include: build the *host* wasm2c generator with Ubuntu's native compiler against pinned WABT 1.0.42, generate C from the exact verified user-supplied WASM, then compile the generated C/runtime with Android NDK Clang for arm64-v8a. Host tools and Android target objects must remain separate. The generator must also run the repository's wasm2c patch and engine patch sequence in the same order as upstream; merely invoking stock WABT wasm2c would omit required futex wait/notify and engine transformations.
 
 No game WASM or generated engine C/header inputs are tracked in this repository, and no proprietary game data should be added to Git. The Android workflow must accept those inputs through a controlled private artifact or local build-input directory and verify the pinned SHA before generation. This trace narrows the next coding step to porting the upstream preparation bootstrap to Linux; it does not yet claim an Android engine build.
+
+
+## Linux wasm2c bootstrap implementation (2026-11-08)
+
+Added `app/Scripts/prepare_android_wasm2c.py` and `app/Scripts/ANDROID_WASM2C.md`. The bootstrap pins the official WABT 1.0.42 Linux x86-64 archive by its published SHA-256, verifies the exact supported game WASM hash before processing, reuses the repository's custom atomic wait/notify writer patch, and compiles the wasm2c executable with the Ubuntu host compiler. It writes generated C and WABT runtime files to a caller-selected output directory; it does not add game files or generated proprietary engine C to Git.
+
+This is a concrete host-generator implementation, but it is not yet validated against the private game WASM in CI and does not compile the generated C for Android. The next gate is to run it with the exact locally supplied WASM, resolve any host link/compiler issues, then run the ordered engine metadata/import/patch stages before starting NDK engine compilation.
