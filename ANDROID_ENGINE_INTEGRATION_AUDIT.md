@@ -101,3 +101,12 @@ The Linux host toolchain mode was built successfully by GitHub Actions on 2026-1
 - Added `test_android_engine_pipeline.py` to verify the trap hook is inserted once, is idempotent, and fails closed if the pinned WABT runtime signature changes.
 - CI run `42504809701` passed: generated-runtime hook unit test, POSIX futex syntax test, ARM64/Bionic NDK API probe, pinned WABT toolchain build, and validation of all 65 ordered patch-stage files.
 - This validates the runtime patch logic using a fixture, not generation from the proprietary game WASM. The complete orchestrator has not yet been run against the exact local game mirror; full NDK engine build and Vulkan/gameplay remain outstanding.
+
+
+## Clean-checkout pipeline hardening (2026-11-08)
+
+- The Android engine preparation script now creates both `Build/` and `Resources/` before running generators. This is required because `generate_imports.py` writes `Build/import-status.tsv`; a fresh checkout must not depend on pre-existing ignored build folders.
+- Corrected the trap-hook generator to emit actual newline characters in generated C (rather than literal backslash-`n` text).
+- Strengthened the runtime-hook test: it now verifies the generated source has no escaped-newline artifact and compiles the fixture with the host C compiler in syntax-only mode.
+- CI run `42505035238` passed with the hardened pipeline test, pinned wasm2c host toolchain, futex source check, and Android ARM64/Bionic API probe.
+- This is build-pipeline hardening only. It does not mean the full proprietary game WASM has been generated or that the Android game engine is linked/playable.
