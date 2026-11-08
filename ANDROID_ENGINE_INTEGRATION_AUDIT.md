@@ -74,3 +74,11 @@ No game WASM or generated engine C/header inputs are tracked in this repository,
 Added `app/Scripts/prepare_android_wasm2c.py` and `app/Scripts/ANDROID_WASM2C.md`. The bootstrap pins the official WABT 1.0.42 Linux x86-64 archive by its published SHA-256, verifies the exact supported game WASM hash before processing, reuses the repository's custom atomic wait/notify writer patch, and compiles the wasm2c executable with the Ubuntu host compiler. It writes generated C and WABT runtime files to a caller-selected output directory; it does not add game files or generated proprietary engine C to Git.
 
 The Linux host toolchain mode was built successfully by GitHub Actions on 2026-11-08 (run `42501873001`, commit `1154203b660e22acd3b0ec11058a28dd3f305084`). This validates the pinned WABT archive download/checksum, custom writer patch, Ubuntu host compilation/link, and executable smoke check without exposing proprietary game files. It has **not** yet generated C from the private game WASM or compiled the generated C for Android. The next gate is to run it with the exact locally supplied WASM, then run the ordered engine metadata/import/patch stages before starting NDK engine compilation.
+
+
+## Android pthread/futex portability work (2026-11-08)
+
+- `app/Source/WasmFutex.c` now excludes Apple-only address-wait APIs from Android builds. Android uses the existing per-address bucket queue with pthread condition variables; timed waits convert the remaining monotonic duration to an absolute realtime deadline immediately before `pthread_cond_timedwait`, preserving monotonic timeout semantics against wall-clock changes.
+- `app/Source/NativeThreads.c` now guards Apple QoS APIs and uses Android's two-argument `pthread_setname_np(pthread_self(), name)`. Android currently leaves thread scheduling at OS defaults; no unverified real-time priority boost is applied.
+- Added `app/Scripts/test_android_futex_compile.py`; Linux CI compiles the non-Apple futex path with warnings enabled. GitHub Actions run `42504251699` passed, including the host wasm2c build and futex C syntax check.
+- This validates the POSIX fallback source on Linux, not yet a full Android NDK build or runtime futex stress test on the target phone. The engine host still cannot be linked until generated game sources, remaining platform adapters, and a Vulkan renderer exist.
