@@ -15,6 +15,17 @@ static void pg_mod_test_recheck(void);
 #include <string.h>
 #include <strings.h>
 #include <sys/mman.h>
+#if defined(__ANDROID__)
+// Darwin's reusable-page advice has no direct Android equivalent.
+// MADV_FREE gives Linux the same lazy-reclaim intent; page reuse is handled
+// naturally when the allocator writes to the pages again.
+#ifndef MADV_FREE_REUSABLE
+#define MADV_FREE_REUSABLE MADV_FREE
+#endif
+#ifndef MADV_FREE_REUSE
+#define MADV_FREE_REUSE MADV_NORMAL
+#endif
+#endif
 #include <time.h>
 #include <unistd.h>
 #include <math.h>
