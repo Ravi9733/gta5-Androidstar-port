@@ -205,6 +205,50 @@ bool recreateLostSurface() {
 }
 }
 extern "C" JNIEXPORT jstring JNICALL Java_io_github_ravi9733_gta5port_MainActivity_nativeVulkanStatus(JNIEnv* e,jobject){std::lock_guard<std::mutex> l(gMutex);return e->NewStringUTF(gStatus.c_str());}
+extern "C" JNIEXPORT jstring JNICALL
+Java_io_github_ravi9733_gta5port_MainActivity_nativeVulkanDeviceInfo(JNIEnv* env, jobject) {
+    std::lock_guard<std::mutex> lock(gMutex);
+    if (gPhysical == VK_NULL_HANDLE) {
+        return env->NewStringUTF("No Vulkan physical device selected");
+    }
+
+    VkPhysicalDeviceProperties properties{};
+    VkPhysicalDeviceMemoryProperties memory{};
+    vkGetPhysicalDeviceProperties(gPhysical, &properties);
+    vkGetPhysicalDeviceMemoryProperties(gPhysical, &memory);
+
+    VkDeviceSize largestHeap = 0;
+    VkDeviceSize totalDeviceLocal = 0;
+    for (uint32_t i = 0; i < memory.memoryHeapCount; ++i) {
+        const auto& heap = memory.memoryHeaps[i];
+        if (heap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) {
+            totalDeviceLocal += heap.size;
+            if (heap.size > largestHeap) largestHeap = heap.size;
+        }
+    }
+
+    const char* vendor = "Unknown";
+    switch (properties.vendorID) {
+        case 0x5143: vendor = "Qualcomm"; break;
+        case 0x13B5: vendor = "ARM"; break;
+        case 0x1002: vendor = "AMD"; break;
+        case 0x10DE: vendor = "NVIDIA"; break;
+        case 0x8086: vendor = "Intel"; break;
+    }
+
+    char info[1024]{};
+    std::snprintf(info, sizeof(info),
+        "Device: %s\\nVendor: %s (0x%04x)\\nDevice type: %u\\nVulkan API: %u.%u.%u\\nDriver version: %u\\nQueue family: %u\\nDevice-local heap: %.1f MiB (largest %.1f MiB)",
+        properties.deviceName, vendor, properties.vendorID,
+        static_cast<unsigned>(properties.deviceType),
+        VK_VERSION_MAJOR(properties.apiVersion),
+        VK_VERSION_MINOR(properties.apiVersion),
+        VK_VERSION_PATCH(properties.apiVersion),
+        properties.driverVersion, gQueueFamily,
+        static_cast<double>(totalDeviceLocal) / (1024.0 * 1024.0),
+        static_cast<double>(largestHeap) / (1024.0 * 1024.0));
+    return env->NewStringUTF(info);
+}
 extern "C" JNIEXPORT jstring JNICALL Java_io_github_ravi9733_gta5port_MainActivity_nativeAttachSurface(JNIEnv* env,jobject,jobject surface){
  std::lock_guard<std::mutex> l(gMutex); destroyAll(); gWindow=ANativeWindow_fromSurface(env,surface);
  if(!gWindow){gStatus="Android native window unavailable";return env->NewStringUTF(gStatus.c_str());}
