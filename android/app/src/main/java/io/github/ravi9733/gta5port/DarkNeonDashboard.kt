@@ -7,6 +7,7 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.view.SurfaceView
 import android.widget.Button
 import android.widget.FrameLayout
@@ -135,7 +136,7 @@ class DarkNeonDashboard(
         }
         right.addView(scroll, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
         page.orientation = LinearLayout.VERTICAL
-        scroll.addView(page, ScrollView.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+        scroll.addView(page, ScrollView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
         val footer = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
