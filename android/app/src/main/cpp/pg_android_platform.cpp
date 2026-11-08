@@ -77,3 +77,16 @@ extern "C" uint64_t PGAndroidCgroupMemoryHeadroom(void) {
                        "/sys/fs/cgroup/memory/memory.usage_in_bytes", &headroom)) return headroom;
     return 0;
 }
+
+
+extern "C" uint64_t PGAndroidAvailableMemoryEstimate(void) {
+    // Prefer the actual finite memory-controller headroom when the device exposes it.
+    const uint64_t cgroup = PGAndroidCgroupMemoryHeadroom();
+    if (cgroup != 0) return cgroup;
+
+    // Android does not expose a portable Jetsam-equivalent process limit.
+    // Fall back to a clearly approximate physical-RAM-minus-RSS estimate.
+    const uint64_t physical = PGAndroidPhysicalMemory();
+    const uint64_t resident = PGAndroidResidentMemory();
+    return physical > resident ? physical - resident : 0;
+}
