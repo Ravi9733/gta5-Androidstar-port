@@ -14,10 +14,12 @@ class DarkNeonDashboard(
     context: Context,
     private val gameSurface: SurfaceView,
     onImportMods: () -> Unit,
-    onRefreshMods: () -> Unit
+    onRefreshMods: () -> Unit,
+    onCheckGameWasm: () -> Unit
 ) : LinearLayout(context) {
     val statusText = TextView(context)
     val modsText = TextView(context)
+    val gameWasmText = TextView(context)
 
     private val bg = 0xFF090B12.toInt()
     private val panel = 0xFF151827.toInt()
@@ -86,7 +88,14 @@ class DarkNeonDashboard(
             addView(space(10))
             addView(label("PLATFORM", 10f, muted, true))
             addView(label("Android  /  Vulkan", 12f, 0xFFFFFFFF.toInt()))
-            addView(space(14))
+            addView(space(10))
+            addView(label("GAME ENGINE FILE", 10f, muted, true))
+            gameWasmText.text = "game.wasm: not checked"
+            gameWasmText.textSize = 10f
+            gameWasmText.setTextColor(muted)
+            addView(gameWasmText)
+            addView(Button(context).apply { text = "CHECK GAME.WASM"; setOnClickListener { onCheckGameWasm() } })
+            addView(space(8))
             addView(label("MODS & PATCHES", 13f, neon, true))
             modsText.text = "Imported mods: loading…"
             modsText.textSize = 11f
