@@ -1,6 +1,9 @@
 package io.github.ravi9733.gta5port
 
 import android.app.Activity
+import android.app.ActivityManager
+import android.os.Build
+import android.os.SystemClock
 import android.content.Intent
 import android.os.Bundle
 import android.net.Uri
@@ -25,6 +28,9 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
     private lateinit var status: TextView
     private lateinit var modList: TextView
     private lateinit var gameWasmText: TextView
+    private lateinit var performanceText: TextView
+    private var perfWindowStartMs = 0L
+    private var perfFrameCount = 0
     private lateinit var gameSurface: SurfaceView
     private var resumed = false
     private var surfaceReady = false
@@ -49,6 +55,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
         status = dashboard.statusText
         modList = dashboard.modsText
         gameWasmText = dashboard.gameWasmText
+        performanceText = dashboard.performanceText
         refreshModList()
         setContentView(dashboard)
     }
@@ -177,6 +184,21 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
 
     override fun doFrame(frameTimeNanos: Long) {
         if (!rendering || !resumed || !surfaceReady) return
+        perfFrameCount++
+        val nowMs = SystemClock.elapsedRealtime()
+        if (perfWindowStartMs == 0L) perfWindowStartMs = nowMs
+        if (nowMs - perfWindowStartMs >= 1000L) {
+            val uiFps = perfFrameCount * 1000 / (nowMs - perfWindowStartMs).coerceAtLeast(1L)
+            perfFrameCount = 0
+            perfWindowStartMs = nowMs
+            val memory = ActivityManager.MemoryInfo()
+            (getSystemService(ACTIVITY_SERVICE) as ActivityManager).getMemoryInfo(memory)
+            val availableMb = memory.availMem / (1024L * 1024L)
+            val totalMb = memory.totalMem / (1024L * 1024L)
+            val gpu = Build.HARDWARE.ifBlank { "Adreno / Vulkan" }
+            val vulkan = if (status.text.contains("Vulkan swapchain ready", ignoreCase = true)) "READY" else "CHECKING"
+            performanceText.text = "RAM ${availableMb}MB free / ${totalMb}MB  •  GPU $gpu  •  VULKAN $vulkan  •  UI FPS $uiFps"
+        }
         // Vulkan waits and driver calls stay off the Android UI thread. Drop a
         // frame instead of queueing work when the GPU/driver is still busy.
         if (framePending.compareAndSet(false, true)) {
