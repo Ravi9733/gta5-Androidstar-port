@@ -3,6 +3,8 @@ package io.github.ravi9733.gta5port
 import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Color
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
@@ -15,6 +17,7 @@ import android.view.ViewGroup
 import android.view.SurfaceView
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -157,6 +160,21 @@ class DarkNeonDashboard(
         addView(gameSurface, 0, LayoutParams(1, 1))
     }
 
+    /** Uses only the original reference's central key-art region; the Android controls remain native views. */
+    private fun referenceHeroArt(): ImageView {
+        val source = BitmapFactory.decodeResource(resources, R.drawable.fivestar_dashboard)
+        val left = (source.width * 0.281f).toInt().coerceIn(0, source.width - 1)
+        val top = 0
+        val right = source.width
+        val bottom = (source.height * 0.654f).toInt().coerceIn(1, source.height)
+        val artwork = Bitmap.createBitmap(source, left, top, right - left, bottom - top)
+        return ImageView(context).apply {
+            setImageBitmap(artwork)
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            contentDescription = "Five Star Port GTA V characters and Los Santos artwork"
+        }
+    }
+
     private fun showPage(name: String) {
         activePage = name
         navItems.forEach { item ->
@@ -182,7 +200,7 @@ class DarkNeonDashboard(
             clipToOutline = true
             elevation = dp(4).toFloat()
         }
-        hero.addView(LosSantosHeroArt(context), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        hero.addView(referenceHeroArt(), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         val heroCopy = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.BOTTOM
