@@ -251,7 +251,9 @@ uint32_t pg_atomic_notify(wasm_rt_shared_memory_t *m, uint64_t offset,
       atomic_store_explicit(&w->notified, 1, memory_order_release);
       // Woken after the lock is released, so the woken thread doesn't block on it; past 64 at once, now.
       if (woken < 64) wake[woken++] = w;
+#if defined(__APPLE__)
       else if (__builtin_available(iOS 17.4, macOS 14.4, *)) os_sync_wake_by_address_any(&w->notified, 4, OS_SYNC_WAKE_BY_ADDRESS_NONE);
+#endif
     } else {
       atomic_store_explicit(&w->notified, 1, memory_order_relaxed);
       pthread_cond_signal(&w->condition);
