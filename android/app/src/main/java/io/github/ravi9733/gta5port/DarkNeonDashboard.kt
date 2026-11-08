@@ -541,8 +541,9 @@ private class LosSantosHeroArt(context: Context) : View(context) {
         p.color=0x22FFFFFF
         var y=0f
         while(y<h) { canvas.drawLine(0f,y,w,y,p); y+=h*.035f }
-        p.color=0xFFB94EFF.toInt(); p.style=Paint.Style.STROKE; p.strokeWidth=dp(1).toFloat()
-        canvas.drawRoundRect(RectF(1f,1f,w-1f,h-1f),dp(18).toFloat(),dp(18).toFloat(),p); p.style=Paint.Style.FILL
+        p.color=0xFFB94EFF.toInt(); p.style=Paint.Style.STROKE; p.strokeWidth=resources.displayMetrics.density
+        val edge=18f*resources.displayMetrics.density
+        canvas.drawRoundRect(RectF(1f,1f,w-1f,h-1f),edge,edge,p); p.style=Paint.Style.FILL
     }
 }
 private class CardArtView(context: Context, private val variant: Int) : View(context) {
