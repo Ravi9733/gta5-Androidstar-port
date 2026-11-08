@@ -24,6 +24,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
     private external fun nativeDetachSurface()
     private lateinit var status: TextView
     private lateinit var modList: TextView
+    private lateinit var gameSurface: SurfaceView
     private var resumed = false
     private var surfaceReady = false
     private var rendering = false
@@ -36,54 +37,25 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
         super.onCreate(savedInstanceState)
         renderThread = HandlerThread("GTA5-Vulkan").also { it.start() }
         renderHandler = Handler(renderThread.looper)
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(28, 28, 28, 28)
-            setBackgroundColor(0xFF10151D.toInt())
-        }
-        val title = TextView(this).apply {
-            text = "GTA V Android Port"
-            textSize = 25f
-            setTextColor(0xFFFFFFFF.toInt())
-            gravity = Gravity.CENTER
-        }
-        status = TextView(this).apply {
-            text = "Preparing Vulkan renderer…"
-            textSize = 14f
-            setTextColor(0xFFD5DFEA.toInt())
-            gravity = Gravity.CENTER
-            setPadding(0, 14, 0, 14)
-        }
-        val view = SurfaceView(this).apply { holder.addCallback(this@MainActivity) }
-        root.addView(title)
-        root.addView(status)
-        val importMod = android.widget.Button(this).apply {
-            text = "Import mod file"
-            setOnClickListener {
-                val picker = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                    addCategory(Intent.CATEGORY_OPENABLE)
-                    type = "*/*"
-                }
-                startActivityForResult(picker, REQUEST_IMPORT_MOD)
-            }
-        }
-        root.addView(importMod)
-        val refreshMods = android.widget.Button(this).apply {
-            text = "Refresh imported mods"
-            setOnClickListener { refreshModList() }
-        }
-        root.addView(refreshMods)
-        modList = TextView(this).apply {
-            text = "Imported mods: loading…"
-            textSize = 12f
-            setTextColor(0xFFB8C7D9.toInt())
-            setPadding(4, 6, 4, 10)
-        }
-        root.addView(modList)
-        root.addView(view, LinearLayout.LayoutParams(-1, 0, 1f))
+        gameSurface = SurfaceView(this).apply { holder.addCallback(this@MainActivity) }
+        val dashboard = DarkNeonDashboard(
+            context = this,
+            gameSurface = gameSurface,
+            onImportMods = { openModPicker() },
+            onRefreshMods = { refreshModList() }
+        )
+        status = dashboard.statusText
+        modList = dashboard.modsText
         refreshModList()
-        setContentView(root)
+        setContentView(dashboard)
+    }
+
+    private fun openModPicker() {
+        val picker = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+        }
+        startActivityForResult(picker, REQUEST_IMPORT_MOD)
     }
 
     @Deprecated("Uses the platform document picker for broad Android compatibility")
