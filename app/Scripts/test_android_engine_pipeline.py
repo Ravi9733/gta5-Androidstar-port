@@ -15,11 +15,11 @@ spec.loader.exec_module(module)
 with tempfile.TemporaryDirectory(prefix="pg-runtime-hook-") as directory:
     runtime = Path(directory) / "wasm-rt-impl.c"
     marker = "void wasm_rt_trap(wasm_rt_trap_t code) {"
-    runtime.write_text(marker + "\n  abort();\n}\n")
+    runtime.write_text("#include <stdlib.h>\ntypedef int wasm_rt_trap_t;\n" + marker + "\n  abort();\n}\n")
     module.install_trap_callback(runtime)
     patched = runtime.read_text()
     assert patched.count("pg_record_trap(code)") == 1
-    assert "\\\\n" not in patched, "The generated C contains literal backslash-n text"
+    assert "\\n" not in patched, "The generated C contains literal backslash-n text"
     compiler = shutil.which("cc")
     if compiler:
         subprocess.run([compiler, "-fsyntax-only", str(runtime)], check=True)
