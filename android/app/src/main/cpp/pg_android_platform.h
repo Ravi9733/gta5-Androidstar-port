@@ -12,6 +12,9 @@ uint64_t PGAndroidCgroupMemoryHeadroom(void);
 // and not a promise of how much additional memory Android will permit.
 uint64_t PGAndroidResidentMemory(void);
 uint64_t PGAndroidPhysicalMemory(void);
+// Conservative estimate: finite cgroup headroom when available, otherwise physical RAM minus RSS.
+// This is not Android's guaranteed per-process kill limit.
+uint64_t PGAndroidAvailableMemoryEstimate(void);
 
 #ifdef __cplusplus
 }
