@@ -87,6 +87,24 @@ def run(command: list[str], cwd: Path) -> None:
     subprocess.run(command, cwd=cwd, check=True)
 
 
+def install_trap_callback(runtime_source: Path) -> None:
+    """Forward wasm traps to EngineHost's native diagnostic hook, matching upstream prepare.py."""
+    source = runtime_source.read_text()
+    marker = "void wasm_rt_trap(wasm_rt_trap_t code) {"
+    hook = (
+        "extern void pg_record_trap(int) __attribute__((weak));\\n"
+        "void wasm_rt_trap(wasm_rt_trap_t code) {\\n"
+        "  if (pg_record_trap) pg_record_trap(code);"
+    )
+    if "pg_record_trap(code)" in source:
+        return
+    if source.count(marker) != 1:
+        raise SystemExit(
+            f"Cannot install native trap diagnostics: expected one {marker!r} in {runtime_source}"
+        )
+    runtime_source.write_text(source.replace(marker, hook, 1))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mirror", type=Path, required=True,
@@ -114,9 +132,18 @@ def main() -> int:
         "--tools-dir", str(tools),
     ], app)
 
-    # These two stages must run against the generated game headers before any engine patcher.
+    # wasm2c emits the C module, header, and runtime into Generated. Keep the runtime's
+    # trap callback weak so the same source still works in non-Android host probes.
+    runtime_source = generated / "wasm-rt-impl.c"
+    if not runtime_source.is_file():
+        raise SystemExit(f"wasm2c did not produce the required runtime source: {runtime_source}")
+    install_trap_callback(runtime_source)
+
+    # These stages must run against generated game headers before any engine patcher.
     run([sys.executable, str(app / "Scripts/engine_names.py"), "--wasm", str(wasm)], app)
-    shutil.copy2(manifest, generated.parent / "Resources/manifest.json")
+    resources = app / "Resources"
+    resources.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(manifest, resources / "manifest.json")
     run([sys.executable, str(app / "Scripts/generate_imports.py")], app)
 
     for stage in PATCH_STAGES:
