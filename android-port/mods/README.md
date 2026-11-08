@@ -7,14 +7,15 @@ This directory is the Android-side starting point for the Five Star Port mod sys
 - SAF content URI import of ZIP mod packages.
 - Safe extraction into an app-private staging directory, with path-traversal and extraction-size limits.
 - Per-mod directory plus a JSON manifest.
-- Enable/disable state recorded in the manifest.
+- Enable/disable state recorded in the manifest, with inventory controls.
+- Native C++ overlay resolver for case-insensitive game-relative paths, ordered mod priority, and symlink/path-traversal rejection.
 - Original PC-style paths preserved, including update/x64/dlcpacks/<pack>/dlc.rpf.
 
 ## Not implemented yet
 
 - RAR/7z/OIV extraction.
 - RPF parsing, archive overlay, game file-index integration, or actual asset substitution.
-- Vulkan/game-engine hook that consumes the enabled mod list.
+- Integration of the native overlay resolver into the Vulkan/game-engine asset read path.
 - Blink/Windows x64 ASI execution and Script Hook V API.
 - Trainer key/touch-input bridge.
 
