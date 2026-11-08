@@ -6,7 +6,13 @@
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
+#if defined(__APPLE__)
 #include <TargetConditionals.h>
+#else
+#ifndef TARGET_OS_SIMULATOR
+#define TARGET_OS_SIMULATOR 0
+#endif
+#endif
 
 static struct w2c_env *mainHost;
 // The engine's threads run without a QoS class; under a steady multi-core load iOS may then put them on
@@ -14,6 +20,7 @@ static struct w2c_env *mainHost;
 // 2.4-2.9x at the same scene load). Since v1.4.3 every engine thread is user-initiated (Kevin, 2026-10-20);
 // PG_ENGINE_QOS=interactive raises them further, PG_ENGINE_QOS=off leaves them without a class as before.
 void pg_engine_thread_attributes(pthread_attr_t *attrs) {
+#if defined(__APPLE__)
   static int qos = -1;
   if (qos < 0) {
     const char *v = getenv("PG_ENGINE_QOS");
@@ -21,6 +28,9 @@ void pg_engine_thread_attributes(pthread_attr_t *attrs) {
     char line[96]; snprintf(line, sizeof line, "Engine threads run at QoS %s.", qos == QOS_CLASS_USER_INTERACTIVE ? "user-interactive" : qos ? "user-initiated" : "default"); pg_log(line);
   }
   if (qos) pthread_attr_set_qos_class_np(attrs, (qos_class_t)qos, 0);
+#else
+  (void)attrs; // Android's scheduler uses normal pthread attributes; priority is controlled by the OS.
+#endif
 }
 // Per-thread classes (GTA-216, from another team's native port of the game: the A15 has 2 performance cores, and the
 // threads that decide the frame time should get them). Test switch only: on Kevin's phone it gained nothing at 30 FPS and,
@@ -30,6 +40,7 @@ void pg_engine_thread_attributes(pthread_attr_t *attrs) {
 //   user-initiated (as now): everything else (job workers, audio, streaming, physics, particles).
 // Called by each engine thread once it has its name.
 void pg_engine_thread_qos(const char *name) {
+#if defined(__APPLE__)
   static int map = -1;
   if (map < 0) { const char *v = getenv("PG_QOS_MAP"); map = v && atoi(v) == 1; if (map) pg_log("Engine thread classes: per thread (PG_QOS_MAP=1)."); }
   if (!map || !name) return;
@@ -39,6 +50,9 @@ void pg_engine_thread_qos(const char *name) {
   for (unsigned i = 0; i < sizeof interactive / sizeof *interactive; i++) if (strstr(name, interactive[i])) qos = QOS_CLASS_USER_INTERACTIVE;
   for (unsigned i = 0; i < sizeof utility / sizeof *utility; i++) if (strstr(name, utility[i])) qos = QOS_CLASS_UTILITY;
   if (qos != QOS_CLASS_USER_INITIATED) pthread_set_qos_class_self_np(qos, 0);
+#else
+  (void)name;
+#endif
 }
 struct EngineThread {struct w2c_env host;struct w2c_wasi__snapshot__preview1 wasi;u64 pthread,start,arg;wasm_rt_funcref_t *table;};
 static _Thread_local struct EngineThread *currentThread;
@@ -168,7 +182,12 @@ static void nameEngineThread(struct EngineThread *thread) {
     if(n>=2&&!base[arg+24+n]){memcpy(name,base+arg+24,n);name[n]=0;}
   }
   if(!name[0])snprintf(name,sizeof name,"gta.engine.start%llu",(unsigned long long)thread->start);
-  pthread_setname_np(name);pg_engine_thread_qos(name);
+#if defined(__APPLE__)
+  pthread_setname_np(name);
+#else
+  pthread_setname_np(pthread_self(), name);
+#endif
+  pg_engine_thread_qos(name);
   char line[96];snprintf(line,sizeof line,"Engine thread: %s.",name);pg_log(line);
 }
 static void *runThread(void *pointer) {
