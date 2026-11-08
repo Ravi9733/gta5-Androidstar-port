@@ -27,6 +27,7 @@ static void pg_mod_test_recheck(void);
 #define TARGET_OS_MACCATALYST 0
 #endif
 extern "C" uint64_t PGAndroidAvailableMemoryEstimate(void);
+extern "C" uint64_t PGAndroidPhysicalMemory(void);
 #elif defined(__APPLE__)
 #include <TargetConditionals.h>
 #include <os/proc.h>
@@ -300,6 +301,17 @@ static const char *pg_region_kind(unsigned tag){
  }
 }
 uint64_t PGGPUTextureBytes(void),PGGPUBufferBytes(void),PGFrameRingBytes(void),PGConstantCopyBytes(void);
+#if defined(__ANDROID__)
+static void pg_log_app_memory(void) {
+  char line[192];
+  const uint64_t physical = PGAndroidPhysicalMemory();
+  const uint64_t available = PGAndroidAvailableMemoryEstimate();
+  snprintf(line, sizeof line, "Android memory: physical RAM %llu MB, estimated process headroom %llu MB",
+           (unsigned long long)(physical >> 20),
+           (unsigned long long)(available >> 20));
+  pg_log(line);
+}
+#else
 static void pg_log_app_memory(void){
  static char otherNames[40][16];
  struct{const char *kind;uint64_t bytes;}kinds[40];int kindCount=0;
@@ -336,6 +348,7 @@ static void pg_log_app_memory(void){
   (unsigned long long)((footprint>seen?footprint-seen:0)>>20),(unsigned long long)(PGGPUTextureBytes()>>20),(unsigned long long)(PGGPUBufferBytes()>>20),(unsigned long long)(PGFrameRingBytes()>>20),(unsigned long long)(PGConstantCopyBytes()>>20));
  pg_log(line);
 }
+#endif // __ANDROID__
 void PGLogMemoryPools(void){
  uint8_t *data=env.memory.data;uint64_t size=env.memory.size;
  if(!data||!size)return;
@@ -572,7 +585,14 @@ void PGSetMemoryCap(int mb) { if (!atomic_load(&started)) memoryCapMB = mb > 0 ?
 static uint64_t pg_engine_memory_mb(void){
  const char *configured=getenv("PG_ENGINE_MEMORY_MB");
  if(configured){long mb=atol(configured);if(mb>=1024&&mb<=8192)return (uint64_t)mb;}
-#if !TARGET_OS_SIMULATOR
+#if defined(__ANDROID__)
+ uint64_t limitMB=PGAndroidPhysicalMemory()>>20;
+ if(memoryCapMB&&memoryCapMB<limitMB){
+  capReserveBytes=(limitMB-memoryCapMB)<<20;
+  limitMB=memoryCapMB;
+ }
+ processLimitMB=limitMB;
+#elif !TARGET_OS_SIMULATOR
  task_vm_info_data_t info={};mach_msg_type_number_t count=TASK_VM_INFO_COUNT;
  if(task_info(mach_task_self(),TASK_VM_INFO,(task_info_t)&info,&count)==KERN_SUCCESS){
   uint64_t limitMB=(PGProcessAvailableMemory()+info.phys_footprint)>>20;
