@@ -82,3 +82,13 @@ The Linux host toolchain mode was built successfully by GitHub Actions on 2026-1
 - `app/Source/NativeThreads.c` now guards Apple QoS APIs and uses Android's two-argument `pthread_setname_np(pthread_self(), name)`. Android currently leaves thread scheduling at OS defaults; no unverified real-time priority boost is applied.
 - Added `app/Scripts/test_android_futex_compile.py`; Linux CI compiles the non-Apple futex path with warnings enabled. GitHub Actions run `42504251699` passed, including the host wasm2c build and futex C syntax check.
 - This validates the POSIX fallback source on Linux, not yet a full Android NDK build or runtime futex stress test on the target phone. The engine host still cannot be linked until generated game sources, remaining platform adapters, and a Vulkan renderer exist.
+
+
+## Android engine-host portability follow-up (2026-11-08)
+
+- `EngineHost.c` now uses Bionic's `pthread_setname_np(pthread_self(), ...)` on Android, while retaining Apple's one-argument form on Apple.
+- The Apple-only `mach-o/dyld.h` include and image-base lookup are guarded; Android resolves the containing shared-object base through `dladdr`.
+- Android's `mincore` accounting uses the resident bit supported by Linux/Bionic instead of Apple's `MINCORE_PAGED_OUT` extension.
+- Added an NDK compile probe for the exact Bionic APIs used here: `pthread_setname_np`, `dladdr/Dl_info`, `mmap/MAP_ANONYMOUS`, `mincore`, `sysconf`, and pthread creation.
+- GitHub Actions run `42504603000` passed. It used NDK 30.0.16248370 and successfully compiled the ARM64 API-29 probe, plus the POSIX futex source syntax check and pinned host wasm2c tool.
+- This is a real NDK API compatibility check, but it is not yet a full `EngineHost.c` compile: generated game headers are still absent from CI, and renderer/platform/audio/input integration is unfinished. No playable APK is claimed.
