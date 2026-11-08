@@ -123,6 +123,8 @@ def main() -> int:
 
     generated = app / "Generated"
     generated.mkdir(parents=True, exist_ok=True)
+    (app / "Build").mkdir(parents=True, exist_ok=True)
+    (app / "Resources").mkdir(parents=True, exist_ok=True)
     tools = args.tools_dir.expanduser().resolve()
 
     run([
