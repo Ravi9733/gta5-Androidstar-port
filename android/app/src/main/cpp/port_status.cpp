@@ -238,7 +238,7 @@ Java_io_github_ravi9733_gta5port_MainActivity_nativeVulkanDeviceInfo(JNIEnv* env
 
     char info[1024]{};
     std::snprintf(info, sizeof(info),
-        "Device: %s\\nVendor: %s (0x%04x)\\nDevice type: %u\\nVulkan API: %u.%u.%u\\nDriver version: %u\\nQueue family: %u\\nDevice-local heap: %.1f MiB (largest %.1f MiB)",
+        "Device: %s\nVendor: %s (0x%04x)\nDevice type: %u\nVulkan API: %u.%u.%u\nDriver version: %u\nQueue family: %u\nDevice-local heap: %.1f MiB (largest %.1f MiB)",
         properties.deviceName, vendor, properties.vendorID,
         static_cast<unsigned>(properties.deviceType),
         VK_VERSION_MAJOR(properties.apiVersion),
