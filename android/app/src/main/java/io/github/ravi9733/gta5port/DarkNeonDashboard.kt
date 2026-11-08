@@ -136,7 +136,7 @@ class DarkNeonDashboard(
         }
         right.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         page.orientation = LinearLayout.VERTICAL
-        scroll.addView(page, ScrollView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        scroll.addView(page, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
         val footer = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
