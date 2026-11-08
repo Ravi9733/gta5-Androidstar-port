@@ -117,3 +117,11 @@ The Linux host toolchain mode was built successfully by GitHub Actions on 2026-1
 - Added `test_android_native_build.py`, which configures the repository's actual `android/app/src/main/cpp/CMakeLists.txt` with the installed NDK CMake toolchain for `arm64-v8a`, API 29, then builds the shared library.
 - CI run `42505207893` passed. The real CMake target compiled `port_status.cpp` and `pg_android_platform.cpp`, linked Vulkan/Android system libraries, and produced `libgta5port.so` (1,897,552 bytes).
 - This is the Android Vulkan scaffold library only. `EngineHost.c`, generated game C, audio/input adapters, and a Vulkan translation of the iOS Metal renderer are still not part of this target; no gameplay APK is implied.
+
+
+## Vulkan GPU capability diagnostics (2026-11-08)
+
+- Added JNI method `nativeVulkanDeviceInfo()` to report the selected Vulkan physical device name, PCI-style vendor ID/vendor family, device type, Vulkan API version, driver version, selected graphics/present queue family, and device-local heap totals.
+- The report is read from Vulkan physical-device and memory properties; it does not guess the active driver from the phone model. This will let a device run distinguish the actual Vulkan driver exposed by Android (including whether a Turnip driver is selected) and record its available GPU memory before renderer work.
+- Android ARM64 NDK build passed in CI run `42505437624`; the shared library including the new diagnostics linked successfully (1,902,624 bytes).
+- This adds diagnostics only. It does not enable Turnip, select a different Vulkan driver, or render GTA V.
