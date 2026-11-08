@@ -5,8 +5,10 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <time.h>
+#if defined(__APPLE__)
 #include <os/clock.h>
 #include <os/os_sync_wait_on_address.h>
+#endif
 
 // The engine's memory.atomic.wait/notify (emscripten futexes: every lock, semaphore and condition of the game's
 // threads ends here). GTA-173: it used to be one queue under one mutex for every address in the game, with a
@@ -48,6 +50,27 @@ static uint64_t nanosecondsLeft(struct timespec deadline) {
   return left > 0 ? (uint64_t)left : 0;
 }
 
+// pthread_cond_timedwait uses an absolute CLOCK_REALTIME deadline on Android/Linux, while
+// this engine's timeout is measured against CLOCK_MONOTONIC. Convert only the remaining duration
+// immediately before sleeping so wall-clock adjustments cannot change the requested timeout.
+static int conditionWaitUntil(pthread_cond_t *condition, pthread_mutex_t *mutex,
+                              struct timespec monotonicDeadline) {
+#if defined(__APPLE__)
+  uint64_t left = nanosecondsLeft(monotonicDeadline);
+  struct timespec remaining = {(time_t)(left / 1000000000), (long)(left % 1000000000)};
+  return left ? pthread_cond_timedwait_relative_np(condition, mutex, &remaining) : ETIMEDOUT;
+#else
+  uint64_t left = nanosecondsLeft(monotonicDeadline);
+  if (!left) return ETIMEDOUT;
+  struct timespec realtime;
+  clock_gettime(CLOCK_REALTIME, &realtime);
+  realtime.tv_sec += (time_t)(left / 1000000000);
+  realtime.tv_nsec += (long)(left % 1000000000);
+  if (realtime.tv_nsec >= 1000000000) { realtime.tv_sec++; realtime.tv_nsec -= 1000000000; }
+  return pthread_cond_timedwait(condition, mutex, &realtime);
+#endif
+}
+
 // MARK: The single queue (up to v1.4.7; PG_FUTEX_OLD=1)
 
 typedef struct OldWaiter {
@@ -73,11 +96,7 @@ static uint32_t oldWaitFor(void *address, uint64_t expected, int64_t timeout, ui
     if (timeout < 0) {
       result = pthread_cond_wait(&waiter.condition, &queueLock);
     } else {
-      // Apple's relative wait uses monotonic time, so wall-clock changes cannot
-      // extend or shorten an engine sleep. Recalculate after a spurious wakeup.
-      uint64_t left = nanosecondsLeft(deadline);
-      struct timespec remaining = {(time_t)(left / 1000000000), (long)(left % 1000000000)};
-      result = left ? pthread_cond_timedwait_relative_np(&waiter.condition, &queueLock, &remaining) : ETIMEDOUT;
+      result = conditionWaitUntil(&waiter.condition, &queueLock, deadline);
     }
   }
   OldWaiter **link = &oldWaiters;
@@ -126,8 +145,12 @@ static void setup(void) {
   const char *old = getenv("PG_FUTEX_OLD");
   useOld = old && atoi(old) != 0;
   for (int i = 0; i < BUCKETS; i++) pthread_mutex_init(&buckets[i].lock, NULL);
+#if defined(__APPLE__)
   addressWait = 0;
   if (__builtin_available(iOS 17.4, macOS 14.4, *)) addressWait = 1;
+#else
+  addressWait = 0;
+#endif
 }
 
 static Bucket *bucketFor(const void *address) {
@@ -190,9 +213,7 @@ static uint32_t waitFor(wasm_rt_shared_memory_t *memory, uint64_t offset,
     if (timeout < 0) {
       result = pthread_cond_wait(&waiter.condition, &bucket->lock);
     } else {
-      uint64_t left = nanosecondsLeft(deadline);
-      struct timespec remaining = {(time_t)(left / 1000000000), (long)(left % 1000000000)};
-      result = left ? pthread_cond_timedwait_relative_np(&waiter.condition, &bucket->lock, &remaining) : ETIMEDOUT;
+      result = conditionWaitUntil(&waiter.condition, &bucket->lock, deadline);
     }
   }
   bool notified = atomic_load_explicit(&waiter.notified, memory_order_relaxed);
@@ -239,7 +260,9 @@ uint32_t pg_atomic_notify(wasm_rt_shared_memory_t *m, uint64_t offset,
   pthread_mutex_unlock(&bucket->lock);
   // A woken waiter can return and reuse its stack as soon as it sees notified = 1; a wake on that stale word
   // reaches nobody, or a later wait of the same thread on the same slot, which re-checks its own word.
+#if defined(__APPLE__)
   if (__builtin_available(iOS 17.4, macOS 14.4, *))
     for (uint32_t i = 0; i < woken; i++) os_sync_wake_by_address_any(&wake[i]->notified, 4, OS_SYNC_WAKE_BY_ADDRESS_NONE);
+#endif
   return total;
 }
