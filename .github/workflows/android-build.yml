@@ -6,6 +6,7 @@ on:
       - android-mods-adaptation
     paths:
       - "android/**"
+      - "app/Source/**"
       - ".github/workflows/android-build.yml"
   workflow_dispatch:
 
