@@ -1,5 +1,6 @@
 package io.github.ravi9733.gta5port
 
+import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Color
 import android.view.Gravity
@@ -7,19 +8,18 @@ import android.view.SurfaceView
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 
 /**
- * Pixel-faithful 16:9 Five Star Port reference-screen host.
- *
- * The reference artwork is loaded as drawable/fivestar_dashboard (1536x864).
- * Invisible hit targets sit above the artwork; they do not redraw or recolor it.
+ * Reference-artwork dashboard. The supplied screenshot is the visible UI;
+ * transparent hit areas provide navigation without drawing over its artwork.
  */
 class DarkNeonDashboard(
     context: Context,
     private val gameSurface: SurfaceView,
-    onImportMods: () -> Unit,
-    onRefreshMods: () -> Unit,
-    onCheckGameWasm: () -> Unit
+    private val onImportMods: () -> Unit,
+    private val onRefreshMods: () -> Unit,
+    private val onCheckGameWasm: () -> Unit
 ) : FrameLayout(context) {
     val statusText = TextView(context)
     val modsText = TextView(context)
@@ -33,63 +33,62 @@ class DarkNeonDashboard(
         clipChildren = true
         clipToPadding = true
 
-        // Keep the supplied 16:9 artwork untouched: no tint, crop, blur, or overlays.
         artwork.apply {
-            scaleType = ImageView.ScaleType.FIT_XY
+            // Preserve the supplied image's aspect ratio; never crop, tint or blur it.
+            scaleType = ImageView.ScaleType.FIT_CENTER
             adjustViewBounds = false
             val imageId = resources.getIdentifier("fivestar_dashboard", "drawable", context.packageName)
             if (imageId != 0) setImageResource(imageId)
-            else contentDescription = "Missing drawable/fivestar_dashboard.webp reference artwork"
+            else {
+                contentDescription = "Missing drawable/fivestar_dashboard.png"
+                Toast.makeText(context, "Dashboard artwork missing", Toast.LENGTH_LONG).show()
+            }
             importantForAccessibility = ImageView.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
         addView(artwork, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
 
-        // Hidden state holders preserve the existing MainActivity integration without
-        // placing debug text over the exact reference design.
-        statusText.visibility = GONE
-        modsText.visibility = GONE
-        gameWasmText.visibility = GONE
-        performanceText.visibility = GONE
-        addView(statusText)
-        addView(modsText)
-        addView(gameWasmText)
-        addView(performanceText)
-
-        // Transparent, percentage-positioned hit targets. The screenshot remains the UI.
-        addHit(0.00f, 0.33f, 0.14f, 0.08f) { statusText.text = "Home" }
-        addHit(0.00f, 0.41f, 0.14f, 0.08f) { onImportMods() }
-        addHit(0.00f, 0.49f, 0.14f, 0.08f) { onCheckGameWasm() }
-        addHit(0.00f, 0.57f, 0.14f, 0.08f) { onRefreshMods() }
-        addHit(0.00f, 0.65f, 0.14f, 0.08f) { statusText.text = "Credits" }
-
-        // Main five cards in the supplied image.
-        addHit(0.12f, 0.42f, 0.21f, 0.34f) {
-            statusText.text = "Story Mode selected — game runtime is not linked yet."
-            gameSurface.visibility = VISIBLE
-        }
-        addHit(0.32f, 0.44f, 0.16f, 0.32f) {
-            statusText.text = "Sandbox selected — game runtime is not linked yet."
-            gameSurface.visibility = VISIBLE
-        }
-        addHit(0.48f, 0.44f, 0.16f, 0.32f) {
-            statusText.text = "Performance selected"
-        }
-        addHit(0.64f, 0.44f, 0.17f, 0.32f) { onImportMods() }
-        addHit(0.81f, 0.44f, 0.17f, 0.32f) {
-            statusText.text = "Self Radio selected"
+        // Keep existing activity data bindings, but do not overlay debug text on the design.
+        listOf(statusText, modsText, gameWasmText, performanceText).forEach {
+            it.visibility = GONE
+            addView(it)
         }
 
-        // Top-right quick actions: About, Settings and Exit.
-        addHit(0.72f, 0.02f, 0.09f, 0.07f) { statusText.text = "Five Star Port v1.6.2" }
-        addHit(0.81f, 0.02f, 0.10f, 0.07f) { onCheckGameWasm() }
-        addHit(0.91f, 0.02f, 0.08f, 0.07f) { statusText.text = "Exit requested" }
+        // Left navigation: Home, Mods, Settings, Extras, Credits.
+        addHit("Home", 0.015f, 0.305f, 0.13f, 0.075f) {
+            gameSurface.visibility = GONE
+            Toast.makeText(context, "Home", Toast.LENGTH_SHORT).show()
+        }
+        addHit("Mods", 0.015f, 0.385f, 0.13f, 0.075f) { showModsMenu() }
+        addHit("Settings", 0.015f, 0.465f, 0.13f, 0.075f) { showSettings() }
+        addHit("Extras", 0.015f, 0.545f, 0.13f, 0.075f) { showExtras() }
+        addHit("Credits", 0.015f, 0.625f, 0.13f, 0.075f) { showCredits() }
 
-        // Keep the Vulkan surface available but hidden until Story/Sandbox is selected.
+        // Main dashboard cards. The renderer is a clear/present bootstrap only;
+        // never cover the dashboard with a black SurfaceView pretending gameplay works.
+        addHit("Story", 0.145f, 0.385f, 0.165f, 0.36f) { unavailable("Story Mode") }
+        addHit("Sandbox", 0.315f, 0.385f, 0.165f, 0.36f) { unavailable("Sandbox") }
+        addHit("Performance", 0.485f, 0.385f, 0.165f, 0.36f) { showPerformance() }
+        addHit("Mods and Patches", 0.655f, 0.385f, 0.165f, 0.36f) { showModsMenu() }
+        addHit("Self Radio", 0.825f, 0.385f, 0.165f, 0.36f) { unavailable("Self Radio") }
+
+        // Top-right quick actions.
+        addHit("About", 0.72f, 0.015f, 0.085f, 0.075f) { showCredits() }
+        addHit("Game files", 0.81f, 0.015f, 0.095f, 0.075f) { onCheckGameWasm() }
+        addHit("Exit", 0.91f, 0.015f, 0.08f, 0.075f) {
+            AlertDialog.Builder(context).setTitle("Exit Five Star Port")
+                .setMessage("Close the app?")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Exit") { _, _ -> (context as? android.app.Activity)?.finish() }
+                .show()
+        }
+
         gameSurface.visibility = GONE
-        addView(gameSurface, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        // Add it below hit targets and keep it hidden until a real game runtime exists.
+        addView(gameSurface, 0, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
 
     private fun addHit(
+        label: String,
         left: Float,
         top: Float,
         width: Float,
@@ -98,15 +97,76 @@ class DarkNeonDashboard(
     ) {
         val hit = TextView(context).apply {
             text = ""
-            alpha = 0.01f
+            alpha = 0f
             isClickable = true
             isFocusable = true
-            setBackgroundColor(Color.WHITE)
+            contentDescription = label
             setOnClickListener { action() }
-            contentDescription = "Dashboard action"
         }
         addView(hit, LayoutParams(1, 1, Gravity.TOP or Gravity.LEFT))
         hit.tag = floatArrayOf(left, top, width, height)
+    }
+
+    private fun showModsMenu() {
+        AlertDialog.Builder(context)
+            .setTitle("Mods & Patches")
+            .setItems(arrayOf("Import mod / ZIP / RPF", "Refresh imported mods", "Check game WASM")) { _, which ->
+                when (which) {
+                    0 -> onImportMods()
+                    1 -> onRefreshMods()
+                    2 -> onCheckGameWasm()
+                }
+            }
+            .setNegativeButton("Close", null)
+            .show()
+    }
+
+    private fun showSettings() {
+        AlertDialog.Builder(context)
+            .setTitle("Settings")
+            .setItems(arrayOf("Graphics status", "Vulkan status", "Game files / WASM")) { _, which ->
+                when (which) {
+                    0 -> showPerformance()
+                    1 -> Toast.makeText(context, "Vulkan renderer status is shown in diagnostics; GTA gameplay renderer is not linked.", Toast.LENGTH_LONG).show()
+                    2 -> onCheckGameWasm()
+                }
+            }
+            .setNegativeButton("Close", null)
+            .show()
+    }
+
+    private fun showExtras() {
+        AlertDialog.Builder(context)
+            .setTitle("Extras")
+            .setItems(arrayOf("Import mods", "Refresh mod list", "Check game files")) { _, which ->
+                when (which) {
+                    0 -> onImportMods()
+                    1 -> onRefreshMods()
+                    2 -> onCheckGameWasm()
+                }
+            }
+            .setNegativeButton("Close", null)
+            .show()
+    }
+
+    private fun showCredits() {
+        AlertDialog.Builder(context)
+            .setTitle("Five Star Port")
+            .setMessage("Android port interface. The current build includes the dashboard and Vulkan surface bootstrap; GTA V gameplay/runtime integration is not yet connected.")
+            .setPositiveButton("OK", null)
+            .show()
+    }
+
+    private fun showPerformance() {
+        AlertDialog.Builder(context)
+            .setTitle("Performance")
+            .setMessage("Live Android memory, UI FPS and Vulkan diagnostics are collected by the activity. These values do not represent GTA V gameplay FPS until the game runtime is integrated.")
+            .setPositiveButton("OK", null)
+            .show()
+    }
+
+    private fun unavailable(feature: String) {
+        Toast.makeText(context, "$feature is not available yet: GTA V gameplay runtime is not connected.", Toast.LENGTH_LONG).show()
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
