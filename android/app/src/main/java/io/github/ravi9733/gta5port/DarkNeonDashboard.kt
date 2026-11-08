@@ -178,17 +178,14 @@ class DarkNeonDashboard(
             Triple("MODS & PATCHES", "Import and manage your add-ons", "MODS"),
             Triple("SELF RADIO", "Your local music library", "RADIO")
         )
-        val row1 = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
-        val row2 = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+        val cardRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
         cards.forEachIndexed { index, data ->
             val card = makeCard(data.first, data.second, index + 1)
-            val row = if (index < 3) row1 else row2
-            row.addView(card, LinearLayout.LayoutParams(0, dp(145), 1f).apply {
-                if (row.childCount > 0) leftMargin = dp(10)
+            cardRow.addView(card, LinearLayout.LayoutParams(0, dp(158), 1f).apply {
+                if (index > 0) leftMargin = dp(7)
             })
         }
-        page.addView(row1, margin(0, 4, 0, 10))
-        page.addView(row2, margin(0, 0, 0, 12))
+        page.addView(cardRow, margin(0, 4, 0, 12))
         val info = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
         }
