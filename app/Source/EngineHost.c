@@ -586,12 +586,19 @@ static uint64_t pg_engine_memory_mb(void){
  const char *configured=getenv("PG_ENGINE_MEMORY_MB");
  if(configured){long mb=atol(configured);if(mb>=1024&&mb<=8192)return (uint64_t)mb;}
 #if defined(__ANDROID__)
- uint64_t limitMB=PGAndroidPhysicalMemory()>>20;
+ // Android has no portable per-process kill-limit API. Start conservatively at 60% of
+ // physical RAM (same policy as the Mac host), with an explicit user cap taking priority.
+ uint64_t limitMB=(PGAndroidPhysicalMemory()>>20)*6/10;
  if(memoryCapMB&&memoryCapMB<limitMB){
   capReserveBytes=(limitMB-memoryCapMB)<<20;
   limitMB=memoryCapMB;
  }
  processLimitMB=limitMB;
+ char androidLimitLine[112];
+ snprintf(androidLimitLine,sizeof androidLimitLine,
+          "Android engine memory budget: conservative %llu MB limit.",
+          (unsigned long long)limitMB);
+ pg_log(androidLimitLine);
 #elif !TARGET_OS_SIMULATOR
  task_vm_info_data_t info={};mach_msg_type_number_t count=TASK_VM_INFO_COUNT;
  if(task_info(mach_task_self(),TASK_VM_INFO,(task_info_t)&info,&count)==KERN_SUCCESS){
