@@ -2,6 +2,8 @@
 """Unit-test the generated wasm runtime trap callback patch."""
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
+import shutil
+import subprocess
 import tempfile
 
 script = Path(__file__).resolve().parent / "prepare_android_engine.py"
@@ -17,6 +19,10 @@ with tempfile.TemporaryDirectory(prefix="pg-runtime-hook-") as directory:
     module.install_trap_callback(runtime)
     patched = runtime.read_text()
     assert patched.count("pg_record_trap(code)") == 1
+    assert "\\\\n" not in patched, "The generated C contains literal backslash-n text"
+    compiler = shutil.which("cc")
+    if compiler:
+        subprocess.run([compiler, "-fsyntax-only", str(runtime)], check=True)
     assert patched.index("pg_record_trap(code)") < patched.index("abort();")
     module.install_trap_callback(runtime)
     assert runtime.read_text() == patched
