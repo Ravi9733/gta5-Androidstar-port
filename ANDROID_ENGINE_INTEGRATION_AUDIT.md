@@ -53,3 +53,17 @@ Do not wire `EngineHost.c` into Android CMake until the project has a reproducib
 ### CI status
 
 Android ARM64 debug workflow run `42500006200` completed successfully on commit `d57f8d7ee9afeca8ec3bcf36a2441e7869d2c52d`. This verifies the current scaffold build only; it does not compile the engine host or demonstrate gameplay.
+
+## WASM-to-C toolchain trace (2026-11-08 follow-up)
+
+The upstream preparation path was traced to `app/Scripts/prepare.py` in `kevinerikjs/gta5-ios-port`. It establishes the exact supported engine input by checking SHA-256:
+
+`11ca8d2c04c5e843d18ff4aea4899d72c86973c6b031df334e67c446b2ae83e0`
+
+It then pins WABT 1.0.42, downloads the WABT C writer and wasm2c driver sources, applies this repository's `Scripts/patch_wasm2c.py` (host-backed atomic wait/notify), compiles a custom `Tools/wasm2c-native`, and runs it with `--enable-threads --no-debug-names --module-name=game --num-outputs=64` to generate `Generated/game.c`. `Scripts/engine_names.py` and `Scripts/generate_imports.py` then produce engine metadata and host import glue. The upstream `prepare.py` currently hard-requires macOS + Apple Silicon and invokes `xcrun clang`, so it cannot be used unchanged on the Android CI's Ubuntu runner.
+
+### Android-specific conclusion
+
+The next implementation unit is a Linux-hosted generator, not a direct CMake include: build the *host* wasm2c generator with Ubuntu's native compiler against pinned WABT 1.0.42, generate C from the exact verified user-supplied WASM, then compile the generated C/runtime with Android NDK Clang for arm64-v8a. Host tools and Android target objects must remain separate. The generator must also run the repository's wasm2c patch and engine patch sequence in the same order as upstream; merely invoking stock WABT wasm2c would omit required futex wait/notify and engine transformations.
+
+No game WASM or generated engine C/header inputs are tracked in this repository, and no proprietary game data should be added to Git. The Android workflow must accept those inputs through a controlled private artifact or local build-input directory and verify the pinned SHA before generation. This trace narrows the next coding step to porting the upstream preparation bootstrap to Linux; it does not yet claim an Android engine build.
