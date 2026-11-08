@@ -51,7 +51,10 @@ def safe_extract(archive: Path, destination: Path) -> None:
                 link = (target.parent / member.linkname).resolve()
                 if link != root and root not in link.parents:
                     raise SystemExit(f"Unsafe link in WABT archive: {member.name}")
-        package.extractall(destination, filter="data")
+        if hasattr(tarfile, "data_filter"):
+            package.extractall(destination, filter="data")
+        else:
+            package.extractall(destination)
 
 
 def run(args: list[str], cwd: Path) -> None:
@@ -104,20 +107,21 @@ def main() -> int:
     originals = {
         "c-writer-original.cc": f"{WABT_RAW}/src/c-writer.cc",
         "wasm2c-main.cc": f"{WABT_RAW}/src/tools/wasm2c.cc",
-        "patch_wasm2c.py": UPSTREAM_PATCH,
     }
     for filename, url in originals.items():
         destination = tools / filename
         if not destination.exists():
             download(url, destination)
 
-    # Keep the patcher itself in the repository as the source of truth.
+    # The checked-in patcher is rooted at app/ and deliberately writes app/Tools.
     patcher = repo / "Scripts/patch_wasm2c.py"
     if not patcher.is_file():
         raise SystemExit(f"Missing upstream patcher: {patcher}")
-    shutil.copy2(patcher, tools / "patch_wasm2c.py")
-    patch_root = tools
-    run(["python3", "patch_wasm2c.py"], patch_root)
+    patch_root = repo / "Tools"
+    patch_root.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(tools / "c-writer-original.cc", patch_root / "c-writer-original.cc")
+    shutil.copy2(tools / "wasm2c-main.cc", patch_root / "wasm2c-main.cc")
+    run(["python3", str(patcher)], repo)
 
     # The upstream macOS CommonCrypto shim is replaced by OpenSSL's SHA256 API.
     shim = patch_root / "sha256_shim_linux.c"
@@ -161,12 +165,12 @@ def main() -> int:
         str(engine), "-o", str(generated_c),
     ], patch_root)
 
-    runtime_source = wabt / "share/wabt/wasm2c/wasm-rt-impl.c"
-    runtime_header = wabt / "share/wabt/wasm2c/wasm-rt-impl.h"
-    if not runtime_source.is_file() or not runtime_header.is_file():
+    runtime_dir = wabt / "share/wabt/wasm2c"
+    if not (runtime_dir / "wasm-rt-impl.c").is_file():
         raise SystemExit("WABT wasm2c runtime files are missing from the pinned archive.")
-    shutil.copy2(runtime_source, output / "wasm-rt-impl.c")
-    shutil.copy2(runtime_header, output / "wasm-rt-impl.h")
+    for runtime_file in runtime_dir.iterdir():
+        if runtime_file.is_file():
+            shutil.copy2(runtime_file, output / runtime_file.name)
 
     print(f"Generated: {generated_c}")
     print(f"Engine SHA-256: {actual_engine_hash}")
