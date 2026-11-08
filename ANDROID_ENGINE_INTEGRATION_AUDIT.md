@@ -36,3 +36,20 @@ A valid header is only a file-format check. It does not establish that the file 
 - No APK build or on-device test has been completed for this branch yet.
 
 Do not advertise this branch as a playable Android GTA V port until the engine and renderer milestones are built and tested.
+
+## Build-input inventory (2026-11-08)
+
+A second source-tree pass confirmed that the Android branch does not currently contain the generated engine inputs needed to compile the host:
+
+- `app/Source/HostInternal.h` includes `game.h` and `wasm-rt-exceptions.h`; neither generated header is present in the tracked tree.
+- `app/Source/EngineHost.c` also includes `wasm-rt-impl.h` and `engine-functions.h`; these generated headers are not present in the tracked tree either.
+- The tracked tree contains `app/Scripts/generate_imports.py`, `app/Scripts/prepare_plain_engine.py`, and the iOS `build_native.sh` pipeline, but no generated `game_*.c` / wasm2c engine C output and no `game.wasm` input.
+- The existing Android CMake target still builds only the Vulkan bring-up and Android memory adapter. Adding `EngineHost.c` to that target now would fail at the missing generated-header boundary, before renderer/audio/platform integration is even reached.
+
+### Immediate integration gate
+
+Do not wire `EngineHost.c` into Android CMake until the project has a reproducible Android-safe generation step for the exact user-supplied game WASM and its generated C/header/import metadata. The generation step must produce and verify the expected headers and source list without committing proprietary game data. Once those inputs exist, compile the host as a separate staged target and resolve compiler errors by platform subsystem; do not hide missing engine inputs behind placeholder headers or stubs.
+
+### CI status
+
+Android ARM64 debug workflow run `42500006200` completed successfully on commit `d57f8d7ee9afeca8ec3bcf36a2441e7869d2c52d`. This verifies the current scaffold build only; it does not compile the engine host or demonstrate gameplay.
