@@ -26,8 +26,8 @@ static void pg_mod_test_recheck(void);
 #ifndef TARGET_OS_MACCATALYST
 #define TARGET_OS_MACCATALYST 0
 #endif
-extern "C" uint64_t PGAndroidAvailableMemoryEstimate(void);
-extern "C" uint64_t PGAndroidPhysicalMemory(void);
+extern uint64_t PGAndroidAvailableMemoryEstimate(void);
+extern uint64_t PGAndroidPhysicalMemory(void);
 #elif defined(__APPLE__)
 #include <TargetConditionals.h>
 #include <os/proc.h>
