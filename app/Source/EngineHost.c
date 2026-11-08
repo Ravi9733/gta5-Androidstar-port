@@ -19,19 +19,38 @@ static void pg_mod_test_recheck(void);
 #include <unistd.h>
 #include <math.h>
 #include <sys/mman.h>
+#if defined(__ANDROID__)
+#ifndef TARGET_OS_SIMULATOR
+#define TARGET_OS_SIMULATOR 0
+#endif
+#ifndef TARGET_OS_MACCATALYST
+#define TARGET_OS_MACCATALYST 0
+#endif
+extern "C" uint64_t PGAndroidAvailableMemoryEstimate(void);
+#elif defined(__APPLE__)
 #include <TargetConditionals.h>
 #include <os/proc.h>
 #include <mach/mach.h>
-#include "NativeMemoryBudget.h"
 #if TARGET_OS_MACCATALYST
 #include <sys/sysctl.h>
 #endif
+#else
+#ifndef TARGET_OS_SIMULATOR
+#define TARGET_OS_SIMULATOR 0
+#endif
+#ifndef TARGET_OS_MACCATALYST
+#define TARGET_OS_MACCATALYST 0
+#endif
+#endif
+#include "NativeMemoryBudget.h"
 
 // The memory the app may still use before the system stops it (iOS's Jetsam limit). macOS has no such
 // limit, so the Mac app gives itself one, by default 60% of the Mac's memory (PG_STREAM_MEMORY_LIMIT_MB
 // overrides), and every budget built on the iPhone limit works the same there (GTA-9).
 uint64_t PGProcessAvailableMemory(void) {
-#if TARGET_OS_MACCATALYST
+#if defined(__ANDROID__)
+  return PGAndroidAvailableMemoryEstimate();
+#elif TARGET_OS_MACCATALYST
   static uint64_t limit;
   if (!limit) {
     const char *configured = getenv("PG_STREAM_MEMORY_LIMIT_MB");
