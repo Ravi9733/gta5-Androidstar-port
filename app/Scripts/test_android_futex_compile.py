@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 
 repo = Path(__file__).resolve().parents[2]
-source = repo / "Source/WasmFutex.c"
+source = repo / "app/Source/WasmFutex.c"
 with tempfile.TemporaryDirectory(prefix="pg-futex-") as directory:
     temp = Path(directory)
     (temp / "wasm-rt.h").write_text(
