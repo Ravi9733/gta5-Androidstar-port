@@ -73,10 +73,11 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode != Activity.RESULT_OK) return
-        val uri: Uri = data?.data ?: return
+        val resultIntent = data ?: return
+        val uri: Uri = resultIntent.data ?: return
         if (requestCode == REQUEST_CHECK_WASM) {
             try {
-                val grantFlags = data.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION
+                val grantFlags = resultIntent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION
                 contentResolver.takePersistableUriPermission(uri, grantFlags)
             } catch (_: SecurityException) {
                 // Temporary document grant: validation can still run for this session.
