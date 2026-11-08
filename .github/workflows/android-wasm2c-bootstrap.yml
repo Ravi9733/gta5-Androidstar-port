@@ -8,8 +8,11 @@ on:
       - "app/Scripts/prepare_android_wasm2c.py"
       - "app/Scripts/patch_wasm2c.py"
       - "app/Scripts/test_android_futex_compile.py"
+      - "app/Scripts/test_android_posix_apis.py"
+      - "app/Tests/android_posix_api_probe.c"
       - "app/Source/WasmFutex.c"
       - "app/Source/NativeThreads.c"
+      - "app/Source/EngineHost.c"
       - ".github/workflows/android-wasm2c-bootstrap.yml"
   workflow_dispatch:
 
@@ -29,6 +32,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential python3 zlib1g-dev libbz2-dev libssl-dev
 
+      - name: Install Android NDK
+        uses: android-actions/setup-android@v3
+        with:
+          ndk-version: 27.2.12479018
+
       - name: Build pinned custom WABT wasm2c host tool
         run: |
           python3 app/Scripts/prepare_android_wasm2c.py --toolchain-only
@@ -40,8 +48,9 @@ jobs:
 
       - name: Validate Android engine preparation scripts
         run: |
-          python3 -m py_compile app/Scripts/prepare_android_wasm2c.py app/Scripts/prepare_android_engine.py app/Scripts/test_android_futex_compile.py
+          python3 -m py_compile app/Scripts/prepare_android_wasm2c.py app/Scripts/prepare_android_engine.py app/Scripts/test_android_futex_compile.py app/Scripts/test_android_posix_apis.py
           python3 app/Scripts/test_android_futex_compile.py
+          python3 app/Scripts/test_android_posix_apis.py
           python3 - <<'PY'
           from pathlib import Path
           import ast
