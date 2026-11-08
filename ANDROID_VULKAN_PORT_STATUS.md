@@ -1,6 +1,6 @@
 # Android Vulkan port status
 
-Branch: `android-vulkan-port`
+Branch: `android-mods-adaptation`
 
 ## Goal
 
@@ -29,7 +29,7 @@ The Android bootstrap currently has a Kotlin landscape activity, an NDK/CMake AR
 ## Milestones
 
 1. Reproducible Android ARM64 build and Vulkan surface/swapchain smoke test, including pause/resume, resize and device-loss recovery.
-2. Build Tint with WGSL reader and SPIR-V writer; emit SPIR-V and reflection metadata for the exact game shader set.
+2. Build Tint with WGSL reader and SPIR-V writer; emit SPIR-V and reflection metadata for the exact game shader set. The Android WGSL extraction/validation manifest stage is now implemented; it does not yet translate WGSL to SPIR-V.
 3. Port the Metal renderer's command-ring consumer to Vulkan: resource lifetime, descriptors, pipeline cache, barriers, copies, queries, fences, readbacks and synchronization.
 4. Build the same WASM-to-C/ARM64 engine pipeline for Android and replace Apple-specific file, thread, audio, input, memory, logging and lifecycle APIs.
 5. Port feature parity: file discovery/integrity, archive extraction, downloads/block cache, Story, Sandbox, saves, settings, graphics presets, FPS/resolution, touch layout, controller, gyro, mods, cheats and logs.
@@ -46,4 +46,4 @@ The Android bootstrap currently has a Kotlin landscape activity, an NDK/CMake AR
 
 ## Build status
 
-No playable Android APK is produced by this bootstrap. The next gate is a reproducible APK build and Vulkan smoke test, followed by shader translation and the renderer port. Game files remain external and user-supplied; no game data or proprietary binaries belong in the repository.
+No playable Android APK is produced by this bootstrap. The next gate is a reproducible APK build and Vulkan smoke test, followed by shader translation and the renderer port. Game files remain external and user-supplied; no game data or proprietary binaries belong in the repository.\n## Android shader preparation status\n\n`app/Scripts/prepare_android_shaders.py` reuses the upstream shader-pack unpacker, validates stage/function payloads and constants JSON, and writes a deterministic SHA-256 manifest for the Android Tint/SPIR-V stage. A synthetic fixture test runs in CI. This is extraction and validation only: no Tint binary is built, no SPIR-V is emitted, and no game shaders are committed.\n
