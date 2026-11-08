@@ -17,7 +17,7 @@ def main():
         wgsl = b"@vertex fn main() -> @builtin(position) vec4f { return vec4f(0.0); }"
         (src / "pack0.bin").write_bytes(wgsl)
         index = {
-            "_packs": {"0": {"file": "pack0.bin"}},
+            "_packs": [{"file": "pack0.bin"}],
             "deadbeef": {"ok": True, "stage": "vs", "p": [0, 0, len(wgsl), 0]},
         }
         (src / "index.json").write_text(json.dumps(index), encoding="utf-8")
