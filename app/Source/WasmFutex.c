@@ -184,6 +184,7 @@ static uint32_t waitFor(wasm_rt_shared_memory_t *memory, uint64_t offset,
   Waiter waiter = {.address = address, .notified = 0, .next = bucket->head};
   bucket->head = &waiter;
   struct timespec deadline = timeout > 0 ? deadlineAfter(timeout) : (struct timespec){0};
+#if defined(__APPLE__)
   if (addressWait) {
     pthread_mutex_unlock(&bucket->lock);
     // Sleep on our own word until a notify sets it (it unlinks us first) or the time is up.
@@ -207,6 +208,7 @@ static uint32_t waitFor(wasm_rt_shared_memory_t *memory, uint64_t offset,
     pthread_mutex_unlock(&bucket->lock);
     return notified ? 0 : 2;
   }
+#endif
   pthread_cond_init(&waiter.condition, NULL);
   int result = 0;
   while (!atomic_load_explicit(&waiter.notified, memory_order_relaxed) && !result) {
@@ -238,8 +240,11 @@ uint32_t pg_atomic_notify(wasm_rt_shared_memory_t *m, uint64_t offset,
   // reads the value): the fence also covers a plain store, which ARM may otherwise reorder after this load.
   atomic_thread_fence(memory_order_seq_cst);
   if (!atomic_load_explicit(&bucket->sleepers, memory_order_relaxed)) return 0;
+#if defined(__APPLE__)
   Waiter *wake[64];
-  uint32_t total = 0, woken = 0;
+  uint32_t woken = 0;
+#endif
+  uint32_t total = 0;
   pthread_mutex_lock(&bucket->lock);
   for (Waiter **link = &bucket->head; *link && total < count;) {
     Waiter *w = *link;
@@ -247,14 +252,15 @@ uint32_t pg_atomic_notify(wasm_rt_shared_memory_t *m, uint64_t offset,
     *link = w->next;   // unlinked here, so a waiter that times out at the same moment sees it was notified
     atomic_fetch_sub_explicit(&bucket->sleepers, 1, memory_order_relaxed);
     total++;
+#if defined(__APPLE__)
     if (addressWait) {
       atomic_store_explicit(&w->notified, 1, memory_order_release);
       // Woken after the lock is released, so the woken thread doesn't block on it; past 64 at once, now.
       if (woken < 64) wake[woken++] = w;
-#if defined(__APPLE__)
       else if (__builtin_available(iOS 17.4, macOS 14.4, *)) os_sync_wake_by_address_any(&w->notified, 4, OS_SYNC_WAKE_BY_ADDRESS_NONE);
+    } else
 #endif
-    } else {
+    {
       atomic_store_explicit(&w->notified, 1, memory_order_relaxed);
       pthread_cond_signal(&w->condition);
     }
