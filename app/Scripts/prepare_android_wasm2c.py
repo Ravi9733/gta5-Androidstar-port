@@ -21,7 +21,6 @@ WABT_SHA256 = "84895407a6bbb80e918f33b16b2fb2206021c150b6bc9ff6f761263a745ab131"
 ENGINE_SHA256 = "11ca8d2c04c5e843d18ff4aea4899d72c86973c6b031df334e67c446b2ae83e0"
 WABT_BASE = f"https://github.com/WebAssembly/wabt/releases/download/{WABT_VERSION}"
 WABT_RAW = f"https://raw.githubusercontent.com/WebAssembly/wabt/{WABT_VERSION}"
-UPSTREAM_PATCH = "https://raw.githubusercontent.com/kevinerikjs/gta5-ios-port/main/app/Scripts/patch_wasm2c.py"
 
 
 def download(url: str, destination: Path) -> None:
@@ -64,8 +63,10 @@ def run(args: list[str], cwd: Path) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--engine-wasm", type=Path, required=True,
+    parser.add_argument("--engine-wasm", type=Path,
                         help="local game.wasm matching the pinned upstream build")
+    parser.add_argument("--toolchain-only", action="store_true",
+                        help="build and verify host wasm2c without requiring proprietary game.wasm")
     parser.add_argument("--output-dir", type=Path, default=Path("Generated/android"),
                         help="directory for generated game.c and wasm2c runtime files")
     parser.add_argument("--tools-dir", type=Path, default=Path("Tools/android-wasm2c"),
@@ -75,16 +76,20 @@ def main() -> int:
     options = parser.parse_args()
 
     repo = Path(__file__).resolve().parents[1]
-    engine = options.engine_wasm.expanduser().resolve()
-    if not engine.is_file():
-        raise SystemExit(f"Engine WASM not found: {engine}")
-    actual_engine_hash = sha256(engine)
-    if actual_engine_hash != ENGINE_SHA256 and not options.allow_unpinned_engine:
-        raise SystemExit(
-            "Unsupported game.wasm SHA-256. Expected "
-            f"{ENGINE_SHA256}, got {actual_engine_hash}. "
-            "Use --allow-unpinned-engine only for an isolated experiment."
-        )
+    engine = options.engine_wasm.expanduser().resolve() if options.engine_wasm else None
+    actual_engine_hash = None
+    if not options.toolchain_only and engine is None:
+        raise SystemExit("Provide --engine-wasm, or use --toolchain-only for CI validation.")
+    if engine is not None:
+        if not engine.is_file():
+            raise SystemExit(f"Engine WASM not found: {engine}")
+        actual_engine_hash = sha256(engine)
+        if actual_engine_hash != ENGINE_SHA256 and not options.allow_unpinned_engine:
+            raise SystemExit(
+                "Unsupported game.wasm SHA-256. Expected "
+                f"{ENGINE_SHA256}, got {actual_engine_hash}. "
+                "Use --allow-unpinned-engine only for an isolated experiment."
+            )
 
     tools = options.tools_dir.expanduser().resolve()
     output = options.output_dir.expanduser().resolve()
@@ -157,6 +162,10 @@ def main() -> int:
         "-lz", "-lbz2", "-lcrypto", "-pthread",
         "-o", str(wasm2c),
     ], patch_root)
+
+    if options.toolchain_only:
+        print(f"Host wasm2c toolchain ready: {wasm2c}")
+        return 0
 
     generated_c = output / "game.c"
     run([
