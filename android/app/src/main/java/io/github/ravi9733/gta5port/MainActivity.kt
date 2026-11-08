@@ -16,7 +16,7 @@ import android.widget.TextView
 import java.util.concurrent.atomic.AtomicBoolean
 
 class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCallback {
-    companion object { private const val REQUEST_IMPORT_MOD = 7101; init { System.loadLibrary("gta5port") } }
+    companion object { private const val REQUEST_IMPORT_MOD = 7101; private const val REQUEST_CHECK_WASM = 7102; init { System.loadLibrary("gta5port") } }
     private external fun nativeVulkanStatus(): String
     private external fun nativeAttachSurface(surface: Surface): String
     private external fun nativeResizeSurface(width: Int, height: Int)
@@ -24,6 +24,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
     private external fun nativeDetachSurface()
     private lateinit var status: TextView
     private lateinit var modList: TextView
+    private lateinit var gameWasmText: TextView
     private lateinit var gameSurface: SurfaceView
     private var resumed = false
     private var surfaceReady = false
@@ -42,10 +43,12 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
             context = this,
             gameSurface = gameSurface,
             onImportMods = { openModPicker() },
-            onRefreshMods = { refreshModList() }
+            onRefreshMods = { refreshModList() },
+            onCheckGameWasm = { openWasmPicker() }
         )
         status = dashboard.statusText
         modList = dashboard.modsText
+        gameWasmText = dashboard.gameWasmText
         refreshModList()
         setContentView(dashboard)
     }
@@ -58,11 +61,49 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
         startActivityForResult(picker, REQUEST_IMPORT_MOD)
     }
 
+    private fun openWasmPicker() {
+        val picker = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+        }
+        startActivityForResult(picker, REQUEST_CHECK_WASM)
+    }
+
     @Deprecated("Uses the platform document picker for broad Android compatibility")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != REQUEST_IMPORT_MOD || resultCode != Activity.RESULT_OK) return
+        if (resultCode != Activity.RESULT_OK) return
         val uri: Uri = data?.data ?: return
+        if (requestCode == REQUEST_CHECK_WASM) {
+            try {
+                val grantFlags = data.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION
+                contentResolver.takePersistableUriPermission(uri, grantFlags)
+            } catch (_: SecurityException) {
+                // Temporary document grant: validation can still run for this session.
+            }
+            Thread {
+                try {
+                    val result = AndroidGameProbe.inspect(this, uri)
+                    runOnUiThread {
+                        val size = result.sizeBytes?.let { android.text.format.Formatter.formatShortFileSize(this, it) } ?: "size unknown"
+                        gameWasmText.text = if (result.validWasmHeader) {
+                            "Header valid · " + result.displayName + " · " + size + " · WASM " + result.version + ". Runtime not linked."
+                        } else {
+                            "Invalid WASM header · " + result.displayName
+                        }
+                        gameWasmText.setTextColor(if (result.validWasmHeader) 0xFFB8FF35.toInt() else 0xFFFF6B6B.toInt())
+                        getSharedPreferences("game_engine", MODE_PRIVATE).edit()
+                            .putString("game_wasm_uri", uri.toString())
+                            .putBoolean("game_wasm_header_valid", result.validWasmHeader)
+                            .apply()
+                    }
+                } catch (error: Exception) {
+                    runOnUiThread { gameWasmText.text = "WASM check failed: " + (error.message ?: "unknown error") }
+                }
+            }.start()
+            return
+        }
+        if (requestCode != REQUEST_IMPORT_MOD) return
         Thread {
             try {
                 val imported = AndroidModStore.importFile(this, uri)
