@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCallback {
     companion object { private const val REQUEST_IMPORT_MOD = 7101; private const val REQUEST_CHECK_WASM = 7102; init { System.loadLibrary("gta5port") } }
     private external fun nativeVulkanStatus(): String
+    private external fun nativeAvailableMemoryEstimate(): Long
     private external fun nativeAttachSurface(surface: Surface): String
     private external fun nativeResizeSurface(width: Int, height: Int)
     private external fun nativeRenderFrame()
@@ -194,10 +195,11 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
             val memory = ActivityManager.MemoryInfo()
             (getSystemService(ACTIVITY_SERVICE) as ActivityManager).getMemoryInfo(memory)
             val availableMb = memory.availMem / (1024L * 1024L)
+            val nativeEstimateMb = nativeAvailableMemoryEstimate() / (1024L * 1024L)
             val totalMb = memory.totalMem / (1024L * 1024L)
             val gpu = Build.HARDWARE.ifBlank { "Adreno / Vulkan" }
             val vulkan = if (status.text.contains("Vulkan swapchain ready", ignoreCase = true)) "READY" else "CHECKING"
-            performanceText.text = "RAM ${availableMb}MB free / ${totalMb}MB  •  GPU $gpu  •  VULKAN $vulkan  •  UI FPS $uiFps"
+            performanceText.text = "RAM ${availableMb}MB system free / ${totalMb}MB  •  process headroom estimate ${nativeEstimateMb}MB  •  GPU $gpu  •  VULKAN $vulkan  •  UI FPS $uiFps"
         }
         // Vulkan waits and driver calls stay off the Android UI thread. Drop a
         // frame instead of queueing work when the GPU/driver is still busy.
