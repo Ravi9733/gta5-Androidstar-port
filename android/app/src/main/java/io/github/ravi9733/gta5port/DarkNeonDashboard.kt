@@ -134,7 +134,7 @@ class DarkNeonDashboard(
             clipToPadding = false
             setPadding(0, dp(8), 0, dp(4))
         }
-        right.addView(scroll, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
+        right.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         page.orientation = LinearLayout.VERTICAL
         scroll.addView(page, ScrollView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
