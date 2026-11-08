@@ -20,6 +20,7 @@ class DarkNeonDashboard(
     val statusText = TextView(context)
     val modsText = TextView(context)
     val gameWasmText = TextView(context)
+    val performanceText = TextView(context)
 
     private val bg = 0xFF090B12.toInt()
     private val panel = 0xFF151827.toInt()
@@ -76,6 +77,10 @@ class DarkNeonDashboard(
             statusText.textSize = 11f
             statusText.setTextColor(neon)
             addView(statusText)
+            performanceText.text = "RAM  --  •  GPU  --  •  VULKAN  •  UI FPS  --"
+            performanceText.textSize = 10f
+            performanceText.setTextColor(muted)
+            addView(performanceText)
         }
         addView(center, LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
 
