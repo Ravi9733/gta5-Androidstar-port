@@ -192,7 +192,7 @@ class DarkNeonDashboard(
         heroCopy.addView(label("THE CITY IS YOURS", 22f, Color.WHITE, true), margin(0, 3, 0, 0))
         heroCopy.addView(label("FIVE STAR PORT  •  MOBILE EXPERIENCE", 9f, 0xFFE3D9F1.toInt(), true), margin(0, 2, 0, 0))
         hero.addView(heroCopy, FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        page.addView(hero, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(164)).apply {
+        page.addView(hero, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(210)).apply {
             bottomMargin = dp(12)
         })
         val cards = listOf(
@@ -427,69 +427,124 @@ class DarkNeonDashboard(
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 }
 
-/** Lightweight native vector artwork: a Los Santos skyline, sunset and sports car. */
+/** Cinematic neon Los Santos poster artwork drawn natively (not a screenshot background). */
 private class LosSantosHeroArt(context: Context) : View(context) {
     private val p = Paint(Paint.ANTI_ALIAS_FLAG)
-
+    private fun fill(c: Canvas, color: Int, l: Float, t: Float, r: Float, b: Float) {
+        p.color = color; p.shader = null; c.drawRect(l, t, r, b, p)
+    }
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val w = width.toFloat()
-        val h = height.toFloat()
-        p.shader = android.graphics.LinearGradient(0f, 0f, w, h,
-            intArrayOf(0xFF7C3C91.toInt(), 0xFF30234F.toInt(), 0xFF101321.toInt()),
+        val w = width.toFloat(); val h = height.toFloat()
+        if (w <= 0f || h <= 0f) return
+        // Deep violet dusk, warm horizon and atmospheric glow.
+        p.shader = android.graphics.LinearGradient(0f, 0f, 0f, h,
+            intArrayOf(0xFF090B20.toInt(), 0xFF38234F.toInt(), 0xFFB64E79.toInt(), 0xFFFF9864.toInt()),
+            floatArrayOf(0f, .42f, .76f, 1f), android.graphics.Shader.TileMode.CLAMP)
+        canvas.drawRect(0f, 0f, w, h, p); p.shader = null
+        p.shader = android.graphics.RadialGradient(w*.72f, h*.49f, h*.58f,
+            intArrayOf(0x88FFB56A.toInt(), 0x33EF5B9C, 0x00100A20),
             null, android.graphics.Shader.TileMode.CLAMP)
-        canvas.drawRect(0f, 0f, w, h, p)
-        p.shader = null
-
-        p.color = 0xFFFFA65A.toInt()
-        canvas.drawCircle(w * .78f, h * .28f, h * .19f, p)
-        p.color = 0x44301B48
-        canvas.drawRect(0f, h * .60f, w, h, p)
-
-        // Layered city blocks and towers.
+        canvas.drawRect(0f, 0f, w, h, p); p.shader = null
+        // Distant mountain ridges.
+        val ridge = Path().apply {
+            moveTo(0f,h*.68f); lineTo(w*.12f,h*.48f); lineTo(w*.22f,h*.59f)
+            lineTo(w*.38f,h*.40f); lineTo(w*.53f,h*.59f); lineTo(w*.70f,h*.43f)
+            lineTo(w*.83f,h*.57f); lineTo(w,h*.45f); lineTo(w,h); lineTo(0f,h); close()
+        }
+        p.color = 0xFF28213F.toInt(); canvas.drawPath(ridge,p)
+        // Sunset disk with soft halo.
+        p.shader = android.graphics.RadialGradient(w*.78f,h*.43f,h*.24f,
+            intArrayOf(0xFFFFE0A0.toInt(),0xFFFF9C72.toInt(),0x00FF8B88),
+            null,android.graphics.Shader.TileMode.CLAMP)
+        canvas.drawCircle(w*.78f,h*.43f,h*.24f,p); p.shader=null
+        p.color = 0xFFFFC18B.toInt(); canvas.drawCircle(w*.78f,h*.43f,h*.105f,p)
+        // Palm silhouettes frame the poster.
+        p.color = 0xFF111322.toInt()
+        val palmXs = floatArrayOf(.045f,.93f)
+        for (x in palmXs) {
+            val px=x*w
+            p.strokeWidth=w*.008f; p.style=Paint.Style.STROKE
+            canvas.drawLine(px,h*.18f,px+(if(x<.5f) .025f else -.02f)*w,h*.94f,p)
+            p.style=Paint.Style.FILL
+            val tx=px+(if(x<.5f) .025f else -.02f)*w; val ty=h*.18f
+            for (a in -2..2) {
+                val leaf=Path().apply { moveTo(tx,ty); quadTo(tx+a*w*.045f,ty-h*.13f,tx+a*w*.095f,ty-h*.10f) }
+                p.strokeWidth=w*.009f; p.style=Paint.Style.STROKE; canvas.drawPath(leaf,p); p.style=Paint.Style.FILL
+            }
+        }
+        // Dense downtown skyline with lit windows and a few tall towers.
         val buildings = floatArrayOf(
-            .00f,.43f,.09f,.77f, .07f,.34f,.16f,.78f, .14f,.49f,.22f,.80f,
-            .22f,.39f,.30f,.82f, .29f,.28f,.36f,.82f, .35f,.44f,.43f,.80f,
-            .43f,.35f,.51f,.84f, .50f,.48f,.58f,.83f, .57f,.31f,.65f,.82f,
-            .64f,.42f,.73f,.84f, .72f,.35f,.80f,.83f, .79f,.48f,.87f,.82f,
-            .86f,.38f,.94f,.83f, .93f,.51f,1f,.82f
+            0f,.57f,.07f,.89f, .055f,.49f,.12f,.90f, .105f,.61f,.17f,.91f,
+            .16f,.53f,.23f,.91f, .22f,.43f,.28f,.91f, .275f,.58f,.34f,.92f,
+            .33f,.49f,.40f,.92f, .39f,.36f,.455f,.92f, .45f,.51f,.52f,.92f,
+            .515f,.45f,.58f,.92f, .575f,.56f,.64f,.92f, .635f,.40f,.70f,.92f,
+            .695f,.53f,.76f,.92f, .755f,.58f,.82f,.92f, .815f,.46f,.88f,.92f,
+            .875f,.55f,.94f,.92f, .935f,.62f,1f,.92f
         )
-        p.color = 0xFF17172D.toInt()
-        var i = 0
-        while (i < buildings.size) {
-            canvas.drawRect(buildings[i] * w, buildings[i+1] * h,
-                buildings[i+2] * w, buildings[i+3] * h, p)
-            i += 4
+        p.color=0xFF111426.toInt()
+        var i=0
+        while(i<buildings.size) {
+            val l=buildings[i]*w; val t=buildings[i+1]*h; val r=buildings[i+2]*w; val b=buildings[i+3]*h
+            canvas.drawRect(l,t,r,b,p)
+            p.color=0xFFFFC77D.toInt()
+            val cols=((r-l)/(w*.018f)).toInt().coerceAtLeast(1)
+            val rows=((b-t)/(h*.055f)).toInt().coerceAtLeast(1)
+            for(cx in 0 until cols) for(cy in 0 until rows) {
+                if ((cx*3+cy*5+i)%4!=0) canvas.drawRect(l+w*.006f+cx*w*.018f,t+h*.025f+cy*h*.055f,
+                    l+w*.011f+cx*w*.018f,t+h*.038f+cy*h*.055f,p)
+            }
+            p.color=0xFF111426.toInt(); i+=4
         }
-        p.color = 0xFFFFD47A.toInt()
-        for (x in 0..18) for (y in 0..3) {
-            val xx = (x * .052f + .018f) * w
-            val yy = (.52f + y * .065f) * h
-            canvas.drawRect(xx, yy, xx + w * .009f, yy + h * .018f, p)
+        // Neon boulevard and reflected light leading into the city.
+        val road=Path().apply { moveTo(w*.40f,h); lineTo(w*.49f,h*.84f); lineTo(w*.72f,h*.84f); lineTo(w*.98f,h); close() }
+        p.shader=android.graphics.LinearGradient(0f,h*.83f,0f,h,
+            intArrayOf(0xFF282039.toInt(),0xFF080B16.toInt()),null,android.graphics.Shader.TileMode.CLAMP)
+        canvas.drawPath(road,p); p.shader=null
+        p.color=0xAAE64BBA.toInt(); p.strokeWidth=h*.012f
+        canvas.drawLine(w*.49f,h*.85f,w*.40f,h,p)
+        p.color=0xAA9EFF54.toInt(); canvas.drawLine(w*.72f,h*.85f,w*.98f,h,p)
+        // Three dramatic foreground character silhouettes, rim-lit in neon.
+        val people=floatArrayOf(.27f,.43f,.59f)
+        for((idx,x) in people.withIndex()) {
+            val cx=x*w; val headY=h*(if(idx==1).57f else .60f); val radius=h*(if(idx==1).055f else .047f)
+            p.color=if(idx==1) 0xFF080B15.toInt() else 0xFF11101B.toInt()
+            canvas.drawCircle(cx,headY,radius,p)
+            val body=Path().apply {
+                moveTo(cx-radius*.8f,headY+radius*.7f)
+                lineTo(cx-radius*1.65f,h*.96f); lineTo(cx+radius*1.65f,h*.96f)
+                lineTo(cx+radius*.8f,headY+radius*.7f); close()
+            }
+            canvas.drawPath(body,p)
+            p.color=if(idx==1) 0xFFB7FF4A.toInt() else 0xFFE66BB8.toInt()
+            p.strokeWidth=w*.003f; p.style=Paint.Style.STROKE; canvas.drawPath(body,p); p.style=Paint.Style.FILL
         }
-
-        // Three stylized foreground figures and a low sports car silhouette.
-        p.color = 0xFF10101B.toInt()
-        val people = arrayOf(.23f, .36f, .49f)
-        for (x in people) {
-            canvas.drawCircle(x * w, h * .58f, h * .055f, p)
-            canvas.drawRoundRect(RectF((x-.055f)*w, h*.63f, (x+.055f)*w, h*.98f),
-                h*.035f, h*.035f, p)
+        // Foreground sports car with glass, wheels, headlamps and neon underglow.
+        p.setShadowLayer(h*.035f,0f,0f,0xFFB64EFF.toInt())
+        p.color=0xFF080B13.toInt()
+        val car=Path().apply {
+            moveTo(w*.54f,h*.91f); lineTo(w*.60f,h*.81f); lineTo(w*.70f,h*.77f)
+            lineTo(w*.82f,h*.79f); lineTo(w*.90f,h*.88f); lineTo(w*.97f,h*.91f)
+            lineTo(w*.98f,h*.98f); lineTo(w*.52f,h*.98f); close()
         }
-        p.color = 0xFF080B13.toInt()
-        val car = Path().apply {
-            moveTo(w*.53f, h*.88f); lineTo(w*.60f, h*.78f)
-            lineTo(w*.76f, h*.76f); lineTo(w*.86f, h*.86f)
-            lineTo(w*.94f, h*.89f); lineTo(w*.96f, h*.98f)
-            lineTo(w*.52f, h*.98f); close()
-        }
-        canvas.drawPath(car, p)
-        p.color = 0xFFB7FF4A.toInt()
-        canvas.drawCircle(w*.63f, h*.98f, h*.045f, p)
-        canvas.drawCircle(w*.87f, h*.98f, h*.045f, p)
+        canvas.drawPath(car,p); p.clearShadowLayer()
+        p.color=0xFF272A40.toInt()
+        val glass=Path().apply { moveTo(w*.63f,h*.82f); lineTo(w*.71f,h*.79f); lineTo(w*.81f,h*.81f); lineTo(w*.85f,h*.87f); lineTo(w*.61f,h*.87f); close() }
+        canvas.drawPath(glass,p)
+        p.color=0xFFB7FF4A.toInt(); canvas.drawRoundRect(w*.91f,h*.90f,w*.97f,h*.925f,h*.01f,h*.01f,p)
+        p.color=0xFFFF5CA8.toInt(); canvas.drawRoundRect(w*.53f,h*.91f,w*.58f,h*.93f,h*.01f,h*.01f,p)
+        p.color=0xFF05070E.toInt()
+        canvas.drawCircle(w*.63f,h*.98f,h*.045f,p); canvas.drawCircle(w*.87f,h*.98f,h*.045f,p)
+        p.color=0xFF9EFF54.toInt(); p.style=Paint.Style.STROKE; p.strokeWidth=h*.008f
+        canvas.drawCircle(w*.63f,h*.98f,h*.025f,p); canvas.drawCircle(w*.87f,h*.98f,h*.025f,p); p.style=Paint.Style.FILL
+        // Fine poster grain / scanline accents and purple edge glow.
+        p.color=0x22FFFFFF
+        var y=0f
+        while(y<h) { canvas.drawLine(0f,y,w,y,p); y+=h*.035f }
+        p.color=0xFFB94EFF.toInt(); p.style=Paint.Style.STROKE; p.strokeWidth=dp(1).toFloat()
+        canvas.drawRoundRect(RectF(1f,1f,w-1f,h-1f),dp(18).toFloat(),dp(18).toFloat(),p); p.style=Paint.Style.FILL
     }
 }
-
 private class CardArtView(context: Context, private val variant: Int) : View(context) {
     private val p = Paint(Paint.ANTI_ALIAS_FLAG)
     override fun onDraw(canvas: Canvas) {
