@@ -37,10 +37,11 @@ class DarkNeonDashboard(
     private val white = Color.WHITE
 
     init {
-        orientation = HORIZONTAL
+        orientation = VERTICAL
         setBackgroundColor(bg)
         setPadding(dp(14), dp(12), dp(14), dp(10))
 
+        val mainRow = LinearLayout(context).apply { orientation = HORIZONTAL }
         // Left navigation rail
         val nav = LinearLayout(context).apply {
             orientation = VERTICAL
@@ -79,7 +80,7 @@ class DarkNeonDashboard(
         }
         nav.addView(View(context), LayoutParams(1, 0, 1f))
         nav.addView(label("ANDROID  •  ARM64", 9f, muted, true))
-        addView(nav, LayoutParams(dp(184), LayoutParams.MATCH_PARENT))
+        mainRow.addView(nav, LayoutParams(dp(184), LayoutParams.MATCH_PARENT))
 
         // Main cinematic hero column
         val center = LinearLayout(context).apply {
@@ -160,7 +161,7 @@ class DarkNeonDashboard(
         statusText.textSize = 10f
         statusText.setTextColor(neon)
         center.addView(statusText, LayoutParams(LayoutParams.MATCH_PARENT, dp(22)))
-        addView(center, LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
+        mainRow.addView(center, LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
 
         // Right-hand game information panel
         val info = LinearLayout(context).apply {
@@ -190,7 +191,8 @@ class DarkNeonDashboard(
             addView(actionButton("＋  IMPORT MOD", true) { onImportMods() })
             addView(actionButton("↻  REFRESH", false) { onRefreshMods() })
         }
-        addView(info, LayoutParams(dp(224), LayoutParams.MATCH_PARENT))
+        mainRow.addView(info, LayoutParams(dp(224), LayoutParams.MATCH_PARENT))
+        addView(mainRow, LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
 
         // Full-width bottom hardware strip
         val footer = LinearLayout(context).apply {
