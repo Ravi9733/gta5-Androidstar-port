@@ -9,6 +9,8 @@ on:
       - "app/Scripts/patch_wasm2c.py"
       - "app/Scripts/test_android_futex_compile.py"
       - "app/Scripts/test_android_posix_apis.py"
+      - "app/Scripts/test_android_engine_pipeline.py"
+      - "app/Scripts/prepare_android_engine.py"
       - "app/Tests/android_posix_api_probe.c"
       - "app/Source/WasmFutex.c"
       - "app/Source/NativeThreads.c"
@@ -53,7 +55,8 @@ jobs:
 
       - name: Validate Android engine preparation scripts
         run: |
-          python3 -m py_compile app/Scripts/prepare_android_wasm2c.py app/Scripts/prepare_android_engine.py app/Scripts/test_android_futex_compile.py app/Scripts/test_android_posix_apis.py
+          python3 -m py_compile app/Scripts/prepare_android_wasm2c.py app/Scripts/prepare_android_engine.py app/Scripts/test_android_futex_compile.py app/Scripts/test_android_posix_apis.py app/Scripts/test_android_engine_pipeline.py
+          python3 app/Scripts/test_android_engine_pipeline.py
           python3 app/Scripts/test_android_futex_compile.py
           python3 app/Scripts/test_android_posix_apis.py
           python3 - <<'PY'
