@@ -7,6 +7,9 @@ on:
     paths:
       - "app/Scripts/prepare_android_wasm2c.py"
       - "app/Scripts/patch_wasm2c.py"
+      - "app/Scripts/test_android_futex_compile.py"
+      - "app/Source/WasmFutex.c"
+      - "app/Source/NativeThreads.c"
       - ".github/workflows/android-wasm2c-bootstrap.yml"
   workflow_dispatch:
 
