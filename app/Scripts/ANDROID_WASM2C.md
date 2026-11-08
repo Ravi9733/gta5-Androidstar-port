@@ -16,7 +16,15 @@ sudo apt-get update
 sudo apt-get install -y build-essential python3 zlib1g-dev libbz2-dev libssl-dev
 ```
 
-## Run
+## Validate the host toolchain in CI
+
+The repository workflow builds the custom Linux host executable without requiring or uploading proprietary game files:
+
+```sh
+python3 app/Scripts/prepare_android_wasm2c.py --toolchain-only
+```
+
+## Generate C from the supported local engine input
 
 From the repository root:
 
