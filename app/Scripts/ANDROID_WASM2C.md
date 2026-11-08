@@ -40,6 +40,16 @@ The script downloads and verifies the official Linux x86-64 WABT 1.0.42 release 
 
 The engine WASM is read in place and is never copied into Git. Generated C and runtime files are written to the selected output directory. Keep generated engine artifacts and proprietary game inputs out of public commits.
 
+## Run the complete portable engine preparation sequence
+
+When the local mirror contains both the supported engine and the matching game data manifest, run:
+
+```sh
+python3 app/Scripts/prepare_android_engine.py --mirror /absolute/path/to/game-mirror
+```
+
+This invokes the Linux wasm2c generator, writes its output into `app/Generated`, creates function-name/import metadata, then executes the same ordered non-Apple engine patch sequence used by upstream. It expects the mirror layout `b/8b0b5899ed/game.wasm` and `data/manifest.json`. It never uploads the mirror or commits generated proprietary files.
+
 ## Important boundary
 
 This is only the Linux generator bootstrap. It does not yet run `engine_names.py`, `generate_imports.py`, the full ordered upstream engine patch sequence, Android NDK compilation, Vulkan rendering, audio/input adapters, or gameplay tests. The generated C is not yet wired into Android CMake. The Android ARM64 debug APK remains a Vulkan scaffold until those later stages are completed.
