@@ -92,8 +92,8 @@ def install_trap_callback(runtime_source: Path) -> None:
     source = runtime_source.read_text()
     marker = "void wasm_rt_trap(wasm_rt_trap_t code) {"
     hook = (
-        "extern void pg_record_trap(int) __attribute__((weak));\\n"
-        "void wasm_rt_trap(wasm_rt_trap_t code) {\\n"
+        "extern void pg_record_trap(int) __attribute__((weak));\n"
+        "void wasm_rt_trap(wasm_rt_trap_t code) {\n"
         "  if (pg_record_trap) pg_record_trap(code);"
     )
     if "pg_record_trap(code)" in source:
