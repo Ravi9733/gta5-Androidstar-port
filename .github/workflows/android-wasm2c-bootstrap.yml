@@ -1,0 +1,36 @@
+name: Android wasm2c host toolchain
+
+on:
+  push:
+    branches:
+      - android-mods-adaptation
+    paths:
+      - "app/Scripts/prepare_android_wasm2c.py"
+      - "app/Scripts/patch_wasm2c.py"
+      - ".github/workflows/android-wasm2c-bootstrap.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-wasm2c:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install host build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 zlib1g-dev libbz2-dev libssl-dev
+
+      - name: Build pinned custom WABT wasm2c host tool
+        run: |
+          python3 app/Scripts/prepare_android_wasm2c.py --toolchain-only
+
+      - name: Verify generated host tool
+        run: |
+          test -x app/Tools/wasm2c-native
+          app/Tools/wasm2c-native --help
