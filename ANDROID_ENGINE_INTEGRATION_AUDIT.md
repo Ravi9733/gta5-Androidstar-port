@@ -92,3 +92,12 @@ The Linux host toolchain mode was built successfully by GitHub Actions on 2026-1
 - Added an NDK compile probe for the exact Bionic APIs used here: `pthread_setname_np`, `dladdr/Dl_info`, `mmap/MAP_ANONYMOUS`, `mincore`, `sysconf`, and pthread creation.
 - GitHub Actions run `42504603000` passed. It used NDK 30.0.16248370 and successfully compiled the ARM64 API-29 probe, plus the POSIX futex source syntax check and pinned host wasm2c tool.
 - This is a real NDK API compatibility check, but it is not yet a full `EngineHost.c` compile: generated game headers are still absent from CI, and renderer/platform/audio/input integration is unfinished. No playable APK is claimed.
+
+
+## Generated WASM runtime diagnostics (2026-11-08)
+
+- The Android preparation orchestrator now patches the generated `wasm-rt-impl.c` with the same weak `pg_record_trap(int)` callback used by upstream `prepare.py`. This routes WASM traps into EngineHost diagnostics when the native host is linked, without making the runtime require the callback in isolated builds.
+- The orchestrator now creates `app/Resources` before copying the local manifest, avoiding a missing-directory failure on a clean checkout.
+- Added `test_android_engine_pipeline.py` to verify the trap hook is inserted once, is idempotent, and fails closed if the pinned WABT runtime signature changes.
+- CI run `42504809701` passed: generated-runtime hook unit test, POSIX futex syntax test, ARM64/Bionic NDK API probe, pinned WABT toolchain build, and validation of all 65 ordered patch-stage files.
+- This validates the runtime patch logic using a fixture, not generation from the proprietary game WASM. The complete orchestrator has not yet been run against the exact local game mirror; full NDK engine build and Vulkan/gameplay remain outstanding.
