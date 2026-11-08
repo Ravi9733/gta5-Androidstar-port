@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <mutex>
+#include "pg_android_platform.h"
 
 namespace {
 std::mutex gMutex;
@@ -293,3 +294,8 @@ extern "C" JNIEXPORT void JNICALL Java_io_github_ravi9733_gta5port_MainActivity_
  }
 }
 extern "C" JNIEXPORT void JNICALL Java_io_github_ravi9733_gta5port_MainActivity_nativeDetachSurface(JNIEnv*,jobject){std::lock_guard<std::mutex> l(gMutex);destroyAll();gStatus="Render surface detached";}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_io_github_ravi9733_gta5port_MainActivity_nativeAvailableMemoryEstimate(JNIEnv*, jobject) {
+    return static_cast<jlong>(PGAndroidAvailableMemoryEstimate());
+}
