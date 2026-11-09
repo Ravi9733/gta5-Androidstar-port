@@ -56,7 +56,7 @@ class PremiumDashboard(
                 intArrayOf(0xFF090B13.toInt(), 0xFF151024.toInt(), 0xFF0B111B.toInt())
             )
         }
-        addView(shell, LayoutParams(MATCH_PARENT, MATCH_PARENT))
+        addView(shell, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
 
         val rail = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -64,16 +64,16 @@ class PremiumDashboard(
             setPadding(dp(9), dp(13), dp(9), dp(10))
             background = surface(intArrayOf(0xF01C1A2A.toInt(), 0xF0101420.toInt()), 22)
         }
-        shell.addView(rail, LinearLayout.LayoutParams(dp(154), MATCH_PARENT))
+        shell.addView(rail, LinearLayout.LayoutParams(dp(154), LayoutParams.MATCH_PARENT))
 
         rail.addView(label("FIVE★", 23f, Color.WHITE, true).apply {
             gravity = Gravity.CENTER
             letterSpacing = .06f
-        }, LinearLayout.LayoutParams(MATCH_PARENT, dp(42)))
+        }, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(42)))
         rail.addView(label("LOS SANTOS PORT", 9f, lime, true).apply {
             gravity = Gravity.CENTER
             letterSpacing = .12f
-        }, LinearLayout.LayoutParams(MATCH_PARENT, dp(24)))
+        }, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(24)))
         divider(rail, dp(10))
 
         val nav = listOf(
@@ -99,7 +99,7 @@ class PremiumDashboard(
                 setOnClickListener { openPage(name) }
             }
             navItems[name] = item
-            rail.addView(item, LinearLayout.LayoutParams(MATCH_PARENT, dp(43)).apply {
+            rail.addView(item, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(43)).apply {
                 topMargin = dp(4)
             })
         }
@@ -110,16 +110,16 @@ class PremiumDashboard(
         rail.addView(label("ANDROID EDITION", 9f, muted, true).apply {
             gravity = Gravity.CENTER
             letterSpacing = .08f
-        }, LinearLayout.LayoutParams(MATCH_PARENT, dp(23)))
+        }, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(23)))
         rail.addView(label("VULKAN • TOUCH", 8f, purple, true).apply {
             gravity = Gravity.CENTER
-        }, LinearLayout.LayoutParams(MATCH_PARENT, dp(18)))
+        }, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(18)))
 
         val main = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(13), dp(1), 0, 0)
         }
-        shell.addView(main, LinearLayout.LayoutParams(0, MATCH_PARENT, 1f).apply {
+        shell.addView(main, LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1f).apply {
             leftMargin = dp(12)
         })
 
@@ -127,14 +127,14 @@ class PremiumDashboard(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        main.addView(header, LinearLayout.LayoutParams(MATCH_PARENT, dp(49)))
+        main.addView(header, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(49)))
         val headerText = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         headerText.addView(label("GRAND THEFT AUTO V", 17f, Color.WHITE, true))
         headerText.addView(label("FIVE STAR PORT  /  ANDROID EXPERIENCE", 8f, lime, true).apply {
             letterSpacing = .08f
         })
-        header.addView(headerText, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-        header.addView(pill("YOUR GAME • YOUR FILES", purple), LinearLayout.LayoutParams(WRAP_CONTENT, dp(29)))
+        header.addView(headerText, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
+        header.addView(pill("YOUR GAME • YOUR FILES", purple), LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, dp(29)))
         divider(main, dp(6))
 
         val scroll = ScrollView(context).apply {
@@ -143,9 +143,9 @@ class PremiumDashboard(
             setPadding(0, dp(8), 0, dp(8))
             overScrollMode = View.OVER_SCROLL_NEVER
         }
-        main.addView(scroll, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
+        main.addView(scroll, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
         page.orientation = LinearLayout.VERTICAL
-        scroll.addView(page, ViewGroup.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
+        scroll.addView(page, ViewGroup.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
 
         val footer = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -153,9 +153,9 @@ class PremiumDashboard(
             setPadding(dp(12), 0, dp(12), 0)
             background = surface(intArrayOf(0xEE1B1A29.toInt(), 0xEE111722.toInt()), 12)
         }
-        main.addView(footer, LinearLayout.LayoutParams(MATCH_PARENT, dp(39)))
-        footer.addView(label("●", 10f, lime, true), LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
-        footer.addView(label("  SYSTEM MONITOR", 9f, Color.WHITE, true), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        main.addView(footer, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(39)))
+        footer.addView(label("●", 10f, lime, true), LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
+        footer.addView(label("  SYSTEM MONITOR", 9f, Color.WHITE, true), LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
         footer.addView(label("LIVE DEVICE DATA", 8f, muted, true))
 
         showPage("HOME")
@@ -193,25 +193,25 @@ class PremiumDashboard(
             clipToOutline = true
             elevation = dp(3).toFloat()
         }
-        hero.addView(LosSantosArt(context), LayoutParams(MATCH_PARENT, MATCH_PARENT))
+        hero.addView(LosSantosArt(context), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         val shade = View(context).apply {
             background = GradientDrawable(
                 GradientDrawable.Orientation.LEFT_RIGHT,
                 intArrayOf(0xEE0A0B16.toInt(), 0x88100C20.toInt(), 0x00100C20)
             )
         }
-        hero.addView(shade, LayoutParams(MATCH_PARENT, MATCH_PARENT))
+        hero.addView(shade, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         val copy = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(21), dp(12), dp(18), dp(12))
         }
-        copy.addView(pill("LOS SANTOS • SAN ANDREAS", lime), LinearLayout.LayoutParams(WRAP_CONTENT, dp(25)))
+        copy.addView(pill("LOS SANTOS • SAN ANDREAS", lime), LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, dp(25)))
         copy.addView(label("GRAND THEFT", 23f, Color.WHITE, true), margin(0, 9, 0, 0))
         copy.addView(label("AUTO V", 31f, Color.WHITE, true))
         copy.addView(label("YOUR NEXT ADVENTURE STARTS HERE", 9f, 0xFFE0D9EA.toInt(), true), margin(0, 4, 0, 0))
-        hero.addView(copy, LayoutParams(MATCH_PARENT, MATCH_PARENT))
-        page.addView(hero, LinearLayout.LayoutParams(MATCH_PARENT, dp(205)).apply {
+        hero.addView(copy, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        page.addView(hero, LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(205)).apply {
             bottomMargin = dp(11)
         })
 
@@ -278,20 +278,6 @@ class PremiumDashboard(
         return box
     }
 
-    private fun showLaunchInfo(mode: String) {
-        page.addView(label(mode, 23f, Color.WHITE, true))
-        page.addView(label("Launch readiness", 10f, lime, true), margin(0, 4, 0, 12))
-        page.addView(infoPanel("GAME DATA", gameWasmText, "Select game.wasm") { onCheckGameWasm() })
-        page.addView(infoPanel("RENDERER", statusText, "Vulkan status is reported by the native renderer"))
-        page.addView(panel().apply {
-            addView(label("GAMEPLAY CONNECTION", 10f, purple, true))
-            addView(label(
-                "This Android branch currently contains the native dashboard and Vulkan surface bootstrap. The GTA V gameplay runtime is not connected yet, so $mode cannot be launched from this build.",
-                11f, Color.WHITE
-            ), margin(0, 7, 0, 0))
-        }, margin(0, 10, 0, 0))
-    }
-
     private fun buildPerformance() {
         page.addView(label("PERFORMANCE", 23f, Color.WHITE, true))
         page.addView(label("Live Android device and renderer diagnostics", 10f, muted), margin(0, 4, 0, 12))
@@ -339,7 +325,7 @@ class PremiumDashboard(
         val text = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         text.addView(label(title, 11f, Color.WHITE, true))
         text.addView(label(detail, 9f, muted), margin(0, 3, 0, 0))
-        row.addView(text, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        row.addView(text, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
         row.addView(pill(buttonText, lime))
         return row
     }
@@ -381,14 +367,14 @@ class PremiumDashboard(
 
     private fun divider(parent: LinearLayout, top: Int) {
         parent.addView(View(context).apply { setBackgroundColor(0x445C536F) },
-            LinearLayout.LayoutParams(MATCH_PARENT, dp(1)).apply {
+            LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(1)).apply {
                 topMargin = top
                 bottomMargin = top
             })
     }
 
     private fun margin(l: Int, t: Int, r: Int, b: Int) =
-        LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply {
+        LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
             setMargins(dp(l), dp(t), dp(r), dp(b))
         }
 
