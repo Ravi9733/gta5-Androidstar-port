@@ -48,7 +48,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback, Choreographer.FrameCall
         renderThread = HandlerThread("GTA5-Vulkan").also { it.start() }
         renderHandler = Handler(renderThread.looper)
         gameSurface = SurfaceView(this).apply { holder.addCallback(this@MainActivity) }
-        val dashboard = DarkNeonDashboard(
+        val dashboard = PremiumDashboard(
             context = this,
             gameSurface = gameSurface,
             onImportMods = { openModPicker() },
