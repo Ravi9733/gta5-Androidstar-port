@@ -9,6 +9,17 @@ set(PORT_SCRIPT_DIR "${PORT_ROOT}/app/Scripts")
 set(ANDROID_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 set(ANDROID_GPU_PROTOCOL_JSON "${ANDROID_GENERATED_DIR}/android-gpu-protocol.json")
 set(ANDROID_GPU_PROTOCOL_HEADER "${ANDROID_GENERATED_DIR}/PGAndroidGpuProtocol.h")
+set(ANDROID_BCDEC_HEADER "${ANDROID_GENERATED_DIR}/bcdec.h")
+
+add_custom_command(
+    OUTPUT "${ANDROID_BCDEC_HEADER}"
+    COMMAND "${Python3_EXECUTABLE}" "${PORT_SCRIPT_DIR}/prepare_android_bc_decoder.py"
+        --output "${ANDROID_BCDEC_HEADER}"
+    DEPENDS "${PORT_SCRIPT_DIR}/prepare_android_bc_decoder.py"
+    COMMENT "Preparing pinned BC texture decoder for Android"
+    VERBATIM
+)
+add_custom_target(android_bc_decoder ALL DEPENDS "${ANDROID_BCDEC_HEADER}")
 
 add_custom_command(
     OUTPUT "${ANDROID_GPU_PROTOCOL_JSON}" "${ANDROID_GPU_PROTOCOL_HEADER}"
@@ -28,11 +39,14 @@ add_custom_target(android_gpu_protocol ALL
     DEPENDS "${ANDROID_GPU_PROTOCOL_JSON}" "${ANDROID_GPU_PROTOCOL_HEADER}"
 )
 
-add_library(gta5_android SHARED vulkan_host.cpp android_graphics_host.cpp gpu_command_ring.cpp gpu_resources.cpp)
-add_dependencies(gta5_android android_gpu_protocol)
+add_library(gta5_android SHARED
+    vulkan_host.cpp android_graphics_host.cpp gpu_command_ring.cpp gpu_resources.cpp
+    "${PORT_SOURCE_DIR}/BCTextureDecoder.c")
+add_dependencies(gta5_android android_gpu_protocol android_bc_decoder)
 target_compile_features(gta5_android PRIVATE cxx_std_20)
 target_compile_options(gta5_android PRIVATE -Wall -Wextra -Werror=return-type)
 target_include_directories(gta5_android PRIVATE "${ANDROID_GENERATED_DIR}" "${PORT_SOURCE_DIR}")
+target_compile_definitions(gta5_android PRIVATE PG_ANDROID_BUILD=1)
 
 find_library(android-lib android REQUIRED)
 find_library(log-lib log REQUIRED)
