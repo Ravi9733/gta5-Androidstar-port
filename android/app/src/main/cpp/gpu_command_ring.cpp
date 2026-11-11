@@ -24,7 +24,7 @@ extern "C" PGAndroidGpuRingResult PGAndroidGpuRingRead(
     const uint32_t opcode = header[0];
     const uint32_t words = header[1];
 
-    if (opcode == PG_ANDROID_GPU_OP_WRAP) {
+    if (opcode == PG_ANDROID_OP_WRAP) {
         cursor->tail = PG_ANDROID_GPU_RING_HEADER_BYTES;
         packet->opcode = opcode;
         packet->word_count = 0;
@@ -33,7 +33,7 @@ extern "C" PGAndroidGpuRingResult PGAndroidGpuRingRead(
         return PG_ANDROID_RING_WRAP;
     }
 
-    if (opcode > PG_ANDROID_GPU_OP_UPLOAD_BUFFER_NO_OVERWRITE ||
+    if (opcode > PG_ANDROID_OP_UPLOAD_BUFFER_NO_OVERWRITE ||
         words > (ring_size - tail - 8u) / 4u ||
         (tail < head && (uint64_t)tail + 8u + (uint64_t)words * 4u > head) ||
         (uint64_t)tail + 8u + (uint64_t)words * 4u > UINT32_MAX) {
