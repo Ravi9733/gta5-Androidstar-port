@@ -22,4 +22,6 @@ bool PGAndroidCreateShaderModule(VkDevice device, const uint32_t *spirv, size_t 
                                  const PGAndroidShaderResource *resources, uint32_t resourceCount,
                                  const PGAndroidGpuBindingState &state,
                                  PGAndroidShaderModule &out);
+bool PGAndroidRefreshShaderDescriptors(const PGAndroidShaderModule &shader,
+    const PGAndroidGpuBindingState &state, std::vector<PGAndroidDescriptorBinding> &out);
 void PGAndroidDestroyShaderModule(VkDevice device, PGAndroidShaderModule &shader);
