@@ -7,6 +7,11 @@
 #include <cstdint>
 #include <thread>
 
+extern "C" bool PGAndroidGpuIsReady(void);
+extern "C" uint32_t PGGraphicsNotify(uint64_t address) __attribute__((weak));
+extern "C" uint32_t PGGraphicsWait(uint64_t address, uint32_t expected,
+                                    int64_t timeoutNs) __attribute__((weak));
+
 namespace {
 constexpr const char *kTag = "GTA5Android";
 constexpr uint32_t kRingDataOffset = PG_ANDROID_GPU_RING_HEADER_BYTES;
@@ -15,11 +20,6 @@ constexpr uint32_t kBatchLimit = 512;
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, kTag, __VA_ARGS__)
 
 std::atomic<bool> gWorkerStarted{false};
-
-extern "C" bool PGAndroidGpuIsReady(void);
-extern "C" uint32_t PGGraphicsNotify(uint64_t address) __attribute__((weak));
-extern "C" uint32_t PGGraphicsWait(uint64_t address, uint32_t expected,
-                                    int64_t timeoutNs) __attribute__((weak));
 
 uint32_t loadAcquire(uint8_t *address) {
     auto *word = reinterpret_cast<uint32_t *>(address);
