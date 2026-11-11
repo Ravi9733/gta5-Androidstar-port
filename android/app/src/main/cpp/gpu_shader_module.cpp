@@ -1,4 +1,5 @@
 #include "gpu_shader_module.h"
+#include "gpu_spirv_validation.h"
 
 #include <unordered_map>
 #include <utility>
@@ -60,6 +61,7 @@ bool PGAndroidCreateShaderModule(
         case VK_SHADER_STAGE_COMPUTE_BIT: stageIndex=2; break;
         default: return false;
     }
+    if(!pgandroid::validateSpirvForStage(spirv,byteCount/sizeof(uint32_t),stageIndex)) return false;
     std::vector<uint32_t> stageSpirv;
     if(!remapSpirvDescriptorSets(spirv,byteCount/sizeof(uint32_t),stageIndex,
         resources,resourceCount,stageSpirv)) return false;
