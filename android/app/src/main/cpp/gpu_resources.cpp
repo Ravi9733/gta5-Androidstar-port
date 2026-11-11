@@ -662,6 +662,16 @@ bool PGAndroidGpuResources::createTextureView(const uint32_t *p, uint32_t n, boo
 }
 
 
+bool PGAndroidGpuResources::getBufferHandle(uint32_t objectId, uint32_t requiredBind,
+    VkBuffer &out, VkDeviceSize &size) const {
+    auto it=buffers_.find(objectId);
+    if (it==buffers_.end() || !it->second.buffer ||
+        (it->second.bind & requiredBind) != requiredBind) return false;
+    out=it->second.buffer;
+    size=it->second.size;
+    return true;
+}
+
 bool PGAndroidGpuResources::getBufferDescriptor(uint32_t id, VkDeviceSize offset,
                                                  VkDeviceSize range,
                                                  VkDescriptorBufferInfo &out, uint32_t requiredBind) const {
