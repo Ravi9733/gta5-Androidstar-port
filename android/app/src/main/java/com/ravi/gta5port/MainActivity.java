@@ -50,6 +50,8 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
     private int selectedMap = 0;
     private String selectedFolder = "";
     private int controllerButtons;
+    private float controllerLeftX, controllerLeftY, controllerRightX, controllerRightY;
+    private float controllerLeftTrigger, controllerRightTrigger;
 
     private static native boolean nativeCreate(Surface surface);
     private static native boolean nativeResize(int width, int height);
@@ -417,7 +419,8 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         int bit = controllerBit(keyCode);
         if (bit >= 0) {
             controllerButtons |= (1 << bit);
-            sendController(0, 0, 0, 0, 0, 0);
+            sendController(controllerLeftX, controllerLeftY, controllerRightX, controllerRightY,
+                controllerLeftTrigger, controllerRightTrigger);
             return true;
         }
         return super.onKeyDown(keyCode, event);
@@ -438,15 +441,20 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
     public boolean onGenericMotionEvent(MotionEvent event) {
         if ((event.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
             && event.getAction() == MotionEvent.ACTION_MOVE) {
-            float leftX = event.getAxisValue(MotionEvent.AXIS_X);
-            float leftY = -event.getAxisValue(MotionEvent.AXIS_Y);
-            float rightX = event.getAxisValue(MotionEvent.AXIS_Z);
-            float rightY = -event.getAxisValue(MotionEvent.AXIS_RZ);
-            float leftTrigger = Math.max(event.getAxisValue(MotionEvent.AXIS_LTRIGGER),
+            controllerLeftX = event.getAxisValue(MotionEvent.AXIS_X);
+            controllerLeftY = -event.getAxisValue(MotionEvent.AXIS_Y);
+            controllerRightX = event.getAxisValue(MotionEvent.AXIS_Z);
+            controllerRightY = -event.getAxisValue(MotionEvent.AXIS_RZ);
+            if (Math.abs(controllerRightX) < 0.001f)
+                controllerRightX = event.getAxisValue(MotionEvent.AXIS_RX);
+            if (Math.abs(controllerRightY) < 0.001f)
+                controllerRightY = -event.getAxisValue(MotionEvent.AXIS_RY);
+            controllerLeftTrigger = Math.max(event.getAxisValue(MotionEvent.AXIS_LTRIGGER),
                 event.getAxisValue(MotionEvent.AXIS_BRAKE));
-            float rightTrigger = Math.max(event.getAxisValue(MotionEvent.AXIS_RTRIGGER),
+            controllerRightTrigger = Math.max(event.getAxisValue(MotionEvent.AXIS_RTRIGGER),
                 event.getAxisValue(MotionEvent.AXIS_GAS));
-            sendController(leftX, leftY, rightX, rightY, leftTrigger, rightTrigger);
+            sendController(controllerLeftX, controllerLeftY, controllerRightX, controllerRightY,
+                controllerLeftTrigger, controllerRightTrigger);
             return true;
         }
         return super.onGenericMotionEvent(event);
