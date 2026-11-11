@@ -13,7 +13,8 @@ bool PGAndroidRecordDraw(VkCommandBuffer commandBuffer,
     if (!commandBuffer || !pipeline.handle || pipeline.compute ||
         !layout.pipelineLayout || !layout.descriptorSet ||
         (!vertexBufferIds && vertexBufferCount) || (!vertexOffsets && vertexBufferCount) ||
-        vertexBufferCount > 16 || instanceCount == 0 ||\n        (!indexBufferId && vertexCount == 0)) return false;
+        vertexBufferCount > 16 || instanceCount == 0 ||
+        (!indexBufferId && vertexCount == 0)) return false;
 
     std::vector<VkBuffer> buffers(vertexBufferCount);
     for (uint32_t i=0;i<vertexBufferCount;++i) {
@@ -29,7 +30,7 @@ bool PGAndroidRecordDraw(VkCommandBuffer commandBuffer,
                                        indexType==VK_INDEX_TYPE_UINT32 ? 4u : 0u;
         if (!elementSize || (indexOffset % elementSize) ||
             !resources.getBufferHandle(indexBufferId,0x02u,indexBuffer,size) ||
-            indexOffset >= size) return false;
+            indexOffset > size || static_cast<VkDeviceSize>(indexCount) > (size-indexOffset)/elementSize) return false;
     } else if (indexCount != 0) {
         return false;
     }
@@ -44,7 +45,6 @@ bool PGAndroidRecordDraw(VkCommandBuffer commandBuffer,
         vkCmdDrawIndexed(commandBuffer,indexCount,instanceCount,firstVertexOrIndex,
                          vertexOffset,firstInstance);
     } else {
-        if (!vertexCount) return false;
         vkCmdDraw(commandBuffer,vertexCount,instanceCount,firstVertexOrIndex,firstInstance);
     }
     return true;
