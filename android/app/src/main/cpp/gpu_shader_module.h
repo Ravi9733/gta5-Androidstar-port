@@ -10,6 +10,8 @@
 struct PGAndroidShaderModule {
     VkShaderModule module = VK_NULL_HANDLE;
     VkShaderStageFlagBits stage = VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
+    uint32_t stageIndex = 0;
+    std::vector<PGAndroidShaderResource> reflection;
     std::vector<PGAndroidDescriptorBinding> descriptors;
 };
 
