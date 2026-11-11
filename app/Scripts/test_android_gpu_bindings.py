@@ -39,7 +39,7 @@ int main() {
 """
 
 def main():
-    root = pathlib.Path(__file__).resolve().parents[1]
+    root = pathlib.Path(__file__).resolve().parents[2]
     header = root / "android/app/src/main/cpp"
     with tempfile.TemporaryDirectory(prefix="pg-bindings-") as tmp:
         src = pathlib.Path(tmp) / "test.cpp"
