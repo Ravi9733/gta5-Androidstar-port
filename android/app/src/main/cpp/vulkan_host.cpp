@@ -26,6 +26,8 @@ struct VulkanHost {
     VkQueue queue = VK_NULL_HANDLE;
     uint32_t queueFamily = UINT32_MAX;
     VkSwapchainKHR swapchain = VK_NULL_HANDLE;
+    std::vector<VkImage> swapchainImages;
+    std::vector<VkImageView> swapchainViews;
     VkFormat format = VK_FORMAT_UNDEFINED;
     VkExtent2D extent{};
 } host;
@@ -47,7 +49,13 @@ bool supportsSwapchain(VkPhysicalDevice device) {
 }
 
 void destroySwapchain() {
-    if (host.device && host.swapchain) vkDestroySwapchainKHR(host.device, host.swapchain, nullptr);
+    if (host.device) {
+        for (VkImageView view : host.swapchainViews)
+            if (view) vkDestroyImageView(host.device, view, nullptr);
+        host.swapchainViews.clear();
+        host.swapchainImages.clear();
+        if (host.swapchain) vkDestroySwapchainKHR(host.device, host.swapchain, nullptr);
+    }
     host.swapchain = VK_NULL_HANDLE;
 }
 
@@ -84,6 +92,8 @@ bool makeSwapchain(uint32_t requestedWidth, uint32_t requestedHeight) {
                "vkGetPhysicalDeviceSurfaceFormatsKHR")) return false;
 
     VkSurfaceFormatKHR selected = formats.front();
+    if (formats.size() == 1 && formats.front().format == VK_FORMAT_UNDEFINED)
+        selected.format = VK_FORMAT_B8G8R8A8_UNORM;
     for (const auto &candidate : formats) {
         if (candidate.format == VK_FORMAT_B8G8R8A8_UNORM &&
             candidate.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
@@ -133,8 +143,44 @@ bool makeSwapchain(uint32_t requestedWidth, uint32_t requestedHeight) {
     host.swapchain = replacement;
     host.format = selected.format;
     host.extent = extent;
-    LOGI("Vulkan swapchain ready: %ux%u, format %d", extent.width, extent.height,
-         static_cast<int>(selected.format));
+
+    uint32_t actualImageCount = 0;
+    if (!check(vkGetSwapchainImagesKHR(host.device, host.swapchain, &actualImageCount, nullptr),
+               "vkGetSwapchainImagesKHR(count)") || actualImageCount == 0) {
+        destroySwapchain();
+        return false;
+    }
+    host.swapchainImages.resize(actualImageCount);
+    if (!check(vkGetSwapchainImagesKHR(host.device, host.swapchain, &actualImageCount,
+                                       host.swapchainImages.data()),
+               "vkGetSwapchainImagesKHR(data)")) {
+        destroySwapchain();
+        return false;
+    }
+    host.swapchainImages.resize(actualImageCount);
+    host.swapchainViews.reserve(actualImageCount);
+    for (VkImage image : host.swapchainImages) {
+        VkImageViewCreateInfo viewInfo{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+        viewInfo.image = image;
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.format = host.format;
+        viewInfo.components = {VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
+                               VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
+        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        viewInfo.subresourceRange.baseMipLevel = 0;
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.subresourceRange.baseArrayLayer = 0;
+        viewInfo.subresourceRange.layerCount = 1;
+        VkImageView view = VK_NULL_HANDLE;
+        if (!check(vkCreateImageView(host.device, &viewInfo, nullptr, &view),
+                   "vkCreateImageView(swapchain)")) {
+            destroySwapchain();
+            return false;
+        }
+        host.swapchainViews.push_back(view);
+    }
+    LOGI("Vulkan swapchain ready: %ux%u, %u images/views, format %d",
+         extent.width, extent.height, actualImageCount, static_cast<int>(selected.format));
     return true;
 }
 
