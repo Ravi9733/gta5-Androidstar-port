@@ -5,7 +5,8 @@
 #include <cstring>
 #include <cstdlib>
 #include <memory>
-#include <limits>\n#include <cmath>
+#include <limits>
+#include <cmath>
 #include <vector>
 
 namespace {
