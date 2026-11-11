@@ -74,6 +74,9 @@ jobs:
             -o "$RUNNER_TEMP/pgandroid-gpu/ring-test"
           "$RUNNER_TEMP/pgandroid-gpu/ring-test"
 
+      - name: Test Android shader binding packets
+        run: python3 app/Scripts/test_android_gpu_bindings.py
+
       - name: Test Android BC texture decoder
         run: |
           mkdir -p "$RUNNER_TEMP/pgandroid-bc"
