@@ -316,7 +316,8 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
             + "\n• WASM engine: not connected"
             + "\n• Vulkan game renderer: not connected"
             + "\n• Gamepad mapping: added; engine link pending"
-            + "\n• Touch controls / gyro / audio: pending"
+            + "\n• Touch layout editor: added; live input pending"
+            + "\n• Gyro / Self Radio: pending"
             + "\n\nGame files are not included. The selected folder is saved through Android's document provider.");
     }
 
