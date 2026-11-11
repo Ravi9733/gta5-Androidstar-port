@@ -166,6 +166,7 @@ bool PGAndroidGpuResources::createBuffer(const uint32_t *p, uint32_t n) {
 
     BufferResource resource{};
     resource.size = bytes;
+    resource.bind = bind;
     VkBufferCreateInfo info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     info.size = bytes;
     info.usage = usage;
@@ -588,7 +589,7 @@ bool PGAndroidGpuResources::getBufferDescriptor(uint32_t id, VkDeviceSize offset
     const auto it = buffers_.find(id);
     if (it == buffers_.end() || offset >= it->second.size || !requiredBind ||
         (requiredBind & ~(kBindConstant | kBindShaderResource | kBindUnorderedAccess))) return false;
-    const uint32_t bind = bufferBindFlags_.count(id) ? bufferBindFlags_.at(id) : 0u;
+    const uint32_t bind = it->second.bind;
     if ((bind & requiredBind) != requiredBind) return false;
     const VkDeviceSize available = it->second.size - offset;
     const VkDeviceSize resolvedRange = range == VK_WHOLE_SIZE ? available : range;
