@@ -28,7 +28,7 @@ add_custom_target(android_gpu_protocol ALL
     DEPENDS "${ANDROID_GPU_PROTOCOL_JSON}" "${ANDROID_GPU_PROTOCOL_HEADER}"
 )
 
-add_library(gta5_android SHARED vulkan_host.cpp gpu_command_ring.cpp gpu_resources.cpp)
+add_library(gta5_android SHARED vulkan_host.cpp android_graphics_host.cpp gpu_command_ring.cpp gpu_resources.cpp)
 add_dependencies(gta5_android android_gpu_protocol)
 target_compile_features(gta5_android PRIVATE cxx_std_20)
 target_compile_options(gta5_android PRIVATE -Wall -Wextra -Werror=return-type)
