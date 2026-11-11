@@ -19,9 +19,16 @@ static void pg_mod_test_recheck(void);
 #include <unistd.h>
 #include <math.h>
 #include <sys/mman.h>
+#if defined(__ANDROID__)
+#define TARGET_OS_SIMULATOR 0
+#define TARGET_OS_MACCATALYST 0
+#include <sys/sysinfo.h>
+#include <errno.h>
+#else
 #include <TargetConditionals.h>
 #include <os/proc.h>
 #include <mach/mach.h>
+#endif
 #include "NativeMemoryBudget.h"
 #if TARGET_OS_MACCATALYST
 #include <sys/sysctl.h>
@@ -30,8 +37,54 @@ static void pg_mod_test_recheck(void);
 // The memory the app may still use before the system stops it (iOS's Jetsam limit). macOS has no such
 // limit, so the Mac app gives itself one, by default 60% of the Mac's memory (PG_STREAM_MEMORY_LIMIT_MB
 // overrides), and every budget built on the iPhone limit works the same there (GTA-9).
+#if defined(__ANDROID__)
+static uint64_t pg_android_read_number(const char *path) {
+  FILE *file = fopen(path, "r");
+  if (!file) return 0;
+  char value[64] = {0};
+  if (!fgets(value, sizeof value, file)) { fclose(file); return 0; }
+  fclose(file);
+  if (!strcmp(value, "max\n") || !strcmp(value, "max")) return 0;
+  char *end = NULL;
+  unsigned long long parsed = strtoull(value, &end, 10);
+  return end == value ? 0 : (uint64_t)parsed;
+}
+static uint64_t pg_android_cgroup_headroom(void) {
+  uint64_t limit = pg_android_read_number("/sys/fs/cgroup/memory.max");
+  uint64_t used = pg_android_read_number("/sys/fs/cgroup/memory.current");
+  if (!limit || limit >= (1ull << 60)) {
+    limit = pg_android_read_number("/sys/fs/cgroup/memory/memory.limit_in_bytes");
+    used = pg_android_read_number("/sys/fs/cgroup/memory/memory.usage_in_bytes");
+  }
+  if (!limit || limit >= (1ull << 60)) return 0;
+  return limit > used ? limit - used : 0;
+}
+static uint64_t pg_android_available_memory(void) {
+  uint64_t cgroup = pg_android_cgroup_headroom();
+  if (cgroup) return cgroup;
+  FILE *file = fopen("/proc/meminfo", "r");
+  if (file) {
+    char line[256];
+    while (fgets(line, sizeof line, file)) {
+      unsigned long long kb = 0;
+      if (sscanf(line, "MemAvailable: %llu kB", &kb) == 1) {
+        fclose(file);
+        return ((uint64_t)kb * 1024ull) * 3 / 5;
+      }
+    }
+    fclose(file);
+  }
+  struct sysinfo info;
+  if (sysinfo(&info) == 0)
+    return ((uint64_t)info.freeram + info.bufferram) * info.mem_unit * 3 / 5;
+  return 0;
+}
+#endif
+
 uint64_t PGProcessAvailableMemory(void) {
-#if TARGET_OS_MACCATALYST
+#if defined(__ANDROID__)
+  return pg_android_available_memory();
+#elif TARGET_OS_MACCATALYST
   static uint64_t limit;
   if (!limit) {
     const char *configured = getenv("PG_STREAM_MEMORY_LIMIT_MB");
@@ -282,6 +335,24 @@ static const char *pg_region_kind(unsigned tag){
 }
 uint64_t PGGPUTextureBytes(void),PGGPUBufferBytes(void),PGFrameRingBytes(void),PGConstantCopyBytes(void);
 static void pg_log_app_memory(void){
+#if defined(__ANDROID__)
+  uint64_t rss = 0;
+  FILE *status = fopen("/proc/self/status", "r");
+  if (status) {
+    char line[256];
+    while (fgets(line, sizeof line, status)) {
+      unsigned long long kb = 0;
+      if (sscanf(line, "VmRSS: %llu kB", &kb) == 1) { rss = (uint64_t)kb * 1024ull; break; }
+    }
+    fclose(status);
+  }
+  char line[192];
+  snprintf(line, sizeof line, "Android process memory: RSS %lluMB, engine reservation %lluMB, available estimate %lluMB",
+    (unsigned long long)(rss >> 20), (unsigned long long)(env.memory.size >> 20),
+    (unsigned long long)(PGProcessAvailableMemory() >> 20));
+  pg_log(line);
+  return;
+#else
  static char otherNames[40][16];
  struct{const char *kind;uint64_t bytes;}kinds[40];int kindCount=0;
  const uint64_t page=vm_page_size;
@@ -316,11 +387,17 @@ static void pg_log_app_memory(void){
  if(at<(int)sizeof line-200)snprintf(line+at,sizeof line-at," not in a region (GPU's own) %lluMB; Metal textures %lluMB, buffers %lluMB, frame rings %lluMB; constant buffer copies (malloc) %lluMB",
   (unsigned long long)((footprint>seen?footprint-seen:0)>>20),(unsigned long long)(PGGPUTextureBytes()>>20),(unsigned long long)(PGGPUBufferBytes()>>20),(unsigned long long)(PGFrameRingBytes()>>20),(unsigned long long)(PGConstantCopyBytes()>>20));
  pg_log(line);
+#endif
 }
 void PGLogMemoryPools(void){
  uint8_t *data=env.memory.data;uint64_t size=env.memory.size;
  if(!data||!size)return;
+ #if defined(__ANDROID__)
+ long pageValue = sysconf(_SC_PAGESIZE);
+ const uint64_t page = pageValue > 0 ? (uint64_t)pageValue : 4096;
+#else
  const uint64_t page=16384;
+#endif
  int n=atomic_load(&engineRegionCount);if(n>64)n=64;
  char line[1024];int at=snprintf(line,sizeof line,"Engine memory held:");
  uint64_t inRegions=0;
@@ -329,13 +406,13 @@ void PGLogMemoryPools(void){
   if(e>size)e=size; if(b>=e)continue;
   size_t pages=(size_t)((e-b+page-1)/page);char *vec=malloc(pages);if(!vec)continue;
   uint64_t held=0;
-  if(mincore(data+b,(size_t)(e-b),vec)==0)for(size_t k=0;k<pages;k++)if(vec[k]&(MINCORE_INCORE|MINCORE_PAGED_OUT))held+=page;
+  if(mincore(data+b,(size_t)(e-b),vec)==0)for(size_t k=0;k<pages;k++)if(vec[k]&1)held+=page;
   free(vec);inRegions+=held;
   if(at<(int)sizeof line-48)at+=snprintf(line+at,sizeof line-at," %lluMB@%llx=%llu",(unsigned long long)(engineRegions[i].bytes>>20),(unsigned long long)engineRegions[i].base,(unsigned long long)(held>>20));
  }
  // The whole heap, to get what lies outside the pools (the engine's general allocations).
  uint64_t total=0;size_t pages=(size_t)(size/page);char *vec=malloc(pages);
- if(vec&&mincore(data,(size_t)(pages*page),vec)==0)for(size_t k=0;k<pages;k++)if(vec[k]&(MINCORE_INCORE|MINCORE_PAGED_OUT))total+=page;
+ if(vec&&mincore(data,(size_t)(pages*page),vec)==0)for(size_t k=0;k<pages;k++)if(vec[k]&1)total+=page;
  free(vec);
  uint64_t cpuCopies=0,copies=0,peak=0;
  if(8324232<=size){memcpy(&cpuCopies,data+8324208,8);memcpy(&copies,data+8324216,8);memcpy(&peak,data+8324224,8);}
@@ -553,7 +630,7 @@ void PGSetMemoryCap(int mb) { if (!atomic_load(&started)) memoryCapMB = mb > 0 ?
 static uint64_t pg_engine_memory_mb(void){
  const char *configured=getenv("PG_ENGINE_MEMORY_MB");
  if(configured){long mb=atol(configured);if(mb>=1024&&mb<=8192)return (uint64_t)mb;}
-#if !TARGET_OS_SIMULATOR
+#if !TARGET_OS_SIMULATOR && !defined(__ANDROID__)
  task_vm_info_data_t info={};mach_msg_type_number_t count=TASK_VM_INFO_COUNT;
  if(task_info(mach_task_self(),TASK_VM_INFO,(task_info_t)&info,&count)==KERN_SUCCESS){
   uint64_t limitMB=(PGProcessAvailableMemory()+info.phys_footprint)>>20;
