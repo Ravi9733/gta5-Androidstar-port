@@ -1,3 +1,19 @@
+#if defined(__ANDROID__)
+#include "NativeMemoryBreakdown.h"
+#include <string.h>
+extern void pg_log(const char *line);
+
+// The detailed iOS report depends on Mach VM regions, dyld image segments,
+// malloc zones and Metal allocation counters. Android reports process RSS
+// from EngineHost.c instead; Vulkan allocation counters can replace this stub.
+void PGRendererMemoryReport(PGRendererMemoryNumbers *out) {
+  if (out) memset(out, 0, sizeof(*out));
+}
+void PGLogMemoryBreakdown(const char *reason) {
+  (void)reason;
+  pg_log("Android memory breakdown: process RSS and available-memory estimate are reported separately.");
+}
+#else
 // The memory breakdown (GTA-217). iOS stops the app when its footprint (task_vm_info.phys_footprint) reaches the
 // limit, so this says what the footprint is made of, in parts that add up to it:
 //   - the engine block (the game's own memory, one mapping): what iOS holds of it, per engine pool, against what the
@@ -279,3 +295,5 @@ void PGLogMemoryBreakdown(const char *reason) {
 	pg_log(line);
 	pthread_mutex_unlock(&breakdownLock);
 }
+
+#endif // !__ANDROID__
