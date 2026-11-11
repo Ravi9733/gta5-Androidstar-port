@@ -18,7 +18,7 @@ bool PGAndroidRecordDraw(VkCommandBuffer commandBuffer,
     uint32_t instanceCount, uint32_t firstVertexOrIndex, int32_t vertexOffset,
     uint32_t firstInstance);
 
-// Records one compute dispatch using the pipeline's single descriptor set.
+// Records one compute dispatch with the stage-specific descriptor sets.
 bool PGAndroidRecordDispatch(VkCommandBuffer commandBuffer,
     const PGAndroidPipeline &pipeline, const PGAndroidPipelineLayout &layout,
     uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ);
