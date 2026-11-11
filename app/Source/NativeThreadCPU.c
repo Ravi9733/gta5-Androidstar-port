@@ -1,3 +1,14 @@
+#if defined(__ANDROID__)
+#include <stddef.h>
+
+// Per-thread CPU sampling and instruction/energy counters currently use Mach thread ports and Apple performance-counter APIs.
+// Keep this optional diagnostic line empty until an Android /proc or perf_event backend is added.
+size_t PGThreadCPU(char *out, size_t size) {
+  if (out && size) out[0] = 0;
+  return 0;
+}
+void PGPerfCountersStart(void) {}
+#else
 // CPU time per thread, for the Health line (GTA-162). The Health line has one CPU number for the whole app, and
 // a hot phone can't say which part of the game heats it: the engine's main thread, its workers (audio, streaming,
 // physics), the Metal renderer, file reads or iOS's own audio output. Each call reports the cores every group of
@@ -386,3 +397,5 @@ static void startProfiler(void) {
 #else
 static void startProfiler(void) {}
 #endif
+
+#endif // !__ANDROID__
