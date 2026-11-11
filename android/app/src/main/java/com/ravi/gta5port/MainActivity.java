@@ -451,10 +451,10 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
                 controllerRightX = event.getAxisValue(MotionEvent.AXIS_RX);
             if (Math.abs(controllerRightY) < 0.001f)
                 controllerRightY = -event.getAxisValue(MotionEvent.AXIS_RY);
-            controllerLeftTrigger = Math.max(event.getAxisValue(MotionEvent.AXIS_LTRIGGER),
-                event.getAxisValue(MotionEvent.AXIS_BRAKE));
-            controllerRightTrigger = Math.max(event.getAxisValue(MotionEvent.AXIS_RTRIGGER),
-                event.getAxisValue(MotionEvent.AXIS_GAS));
+            controllerLeftTrigger = Math.max(0f, Math.min(1f, Math.max(
+                event.getAxisValue(MotionEvent.AXIS_LTRIGGER), event.getAxisValue(MotionEvent.AXIS_BRAKE))));
+            controllerRightTrigger = Math.max(0f, Math.min(1f, Math.max(
+                event.getAxisValue(MotionEvent.AXIS_RTRIGGER), event.getAxisValue(MotionEvent.AXIS_GAS))));
             sendController(controllerLeftX, controllerLeftY, controllerRightX, controllerRightY,
                 controllerLeftTrigger, controllerRightTrigger);
             return true;
