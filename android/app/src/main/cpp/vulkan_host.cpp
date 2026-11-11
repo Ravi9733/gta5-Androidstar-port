@@ -561,6 +561,8 @@ extern "C" bool PGAndroidExecuteGpuPacket(uint32_t opcode, const uint32_t *words
             return host.bindings.setSamplers(words, wordCount);
         case PG_ANDROID_OP_SET_UAVS:
             return host.bindings.setUnorderedAccess(words, wordCount);
+        case PG_ANDROID_OP_SET_RENDER_TARGETS:
+            return host.bindings.setRenderTargets(words, wordCount);
         case PG_ANDROID_OP_CLEAR_STATE:
             host.bindings.clear();
             return true;
