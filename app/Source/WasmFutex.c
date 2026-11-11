@@ -5,8 +5,52 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <time.h>
+#if defined(__ANDROID__)
+#include <sys/syscall.h>
+#include <linux/futex.h>
+#include <limits.h>
+#else
 #include <os/clock.h>
 #include <os/os_sync_wait_on_address.h>
+#endif
+
+static int pg_address_wait(_Atomic uint32_t *address, uint32_t expected, uint64_t timeoutNs) {
+#if defined(__ANDROID__)
+  struct timespec timeout, *timeoutPtr = NULL;
+  if (timeoutNs != UINT64_MAX) {
+    timeout.tv_sec = (time_t)(timeoutNs / 1000000000ull);
+    timeout.tv_nsec = (long)(timeoutNs % 1000000000ull);
+    timeoutPtr = &timeout;
+  }
+  return (int)syscall(SYS_futex, (uint32_t *)address, FUTEX_WAIT_PRIVATE,
+                      expected, timeoutPtr, NULL, 0);
+#else
+  if (timeoutNs == UINT64_MAX)
+    return os_sync_wait_on_address(address, expected, 4, OS_SYNC_WAIT_ON_ADDRESS_NONE);
+  return os_sync_wait_on_address_with_timeout(address, expected, 4, OS_SYNC_WAIT_ON_ADDRESS_NONE,
+                                               OS_CLOCK_MACH_ABSOLUTE_TIME, timeoutNs);
+#endif
+}
+static void pg_address_wake(_Atomic uint32_t *address) {
+#if defined(__ANDROID__)
+  (void)syscall(SYS_futex, (uint32_t *)address, FUTEX_WAKE_PRIVATE, 1, NULL, NULL, 0);
+#else
+  os_sync_wake_by_address_any(address, 4, OS_SYNC_WAKE_BY_ADDRESS_NONE);
+#endif
+}
+static int pg_cond_timedwait_relative(pthread_cond_t *condition, pthread_mutex_t *mutex,
+                                      const struct timespec *remaining) {
+#if defined(__ANDROID__)
+  struct timespec absolute;
+  clock_gettime(CLOCK_REALTIME, &absolute);
+  absolute.tv_sec += remaining->tv_sec;
+  absolute.tv_nsec += remaining->tv_nsec;
+  if (absolute.tv_nsec >= 1000000000L) { absolute.tv_sec++; absolute.tv_nsec -= 1000000000L; }
+  return pthread_cond_timedwait(condition, mutex, &absolute);
+#else
+  return pthread_cond_timedwait_relative_np(condition, mutex, remaining);
+#endif
+}
 
 // The engine's memory.atomic.wait/notify (emscripten futexes: every lock, semaphore and condition of the game's
 // threads ends here). GTA-173: it used to be one queue under one mutex for every address in the game, with a
@@ -77,7 +121,7 @@ static uint32_t oldWaitFor(void *address, uint64_t expected, int64_t timeout, ui
       // extend or shorten an engine sleep. Recalculate after a spurious wakeup.
       uint64_t left = nanosecondsLeft(deadline);
       struct timespec remaining = {(time_t)(left / 1000000000), (long)(left % 1000000000)};
-      result = left ? pthread_cond_timedwait_relative_np(&waiter.condition, &queueLock, &remaining) : ETIMEDOUT;
+      result = left ? pg_cond_timedwait_relative(&waiter.condition, &queueLock, &remaining) : ETIMEDOUT;
     }
   }
   OldWaiter **link = &oldWaiters;
@@ -126,8 +170,12 @@ static void setup(void) {
   const char *old = getenv("PG_FUTEX_OLD");
   useOld = old && atoi(old) != 0;
   for (int i = 0; i < BUCKETS; i++) pthread_mutex_init(&buckets[i].lock, NULL);
+#if defined(__ANDROID__)
+  addressWait = 1;
+#else
   addressWait = 0;
   if (__builtin_available(iOS 17.4, macOS 14.4, *)) addressWait = 1;
+#endif
 }
 
 static Bucket *bucketFor(const void *address) {
@@ -167,12 +215,11 @@ static uint32_t waitFor(wasm_rt_shared_memory_t *memory, uint64_t offset,
     while (!atomic_load_explicit(&waiter.notified, memory_order_acquire)) {
       int result;
       if (timeout < 0) {
-        result = os_sync_wait_on_address(&waiter.notified, 0, 4, OS_SYNC_WAIT_ON_ADDRESS_NONE);
+        result = pg_address_wait(&waiter.notified, 0, UINT64_MAX);
       } else {
         uint64_t left = nanosecondsLeft(deadline);
         if (!left) break;
-        result = os_sync_wait_on_address_with_timeout(&waiter.notified, 0, 4, OS_SYNC_WAIT_ON_ADDRESS_NONE,
-                                                      OS_CLOCK_MACH_ABSOLUTE_TIME, left);
+        result = pg_address_wait(&waiter.notified, 0, left);
       }
       if (result < 0 && errno == ETIMEDOUT) break;
     }
@@ -192,7 +239,7 @@ static uint32_t waitFor(wasm_rt_shared_memory_t *memory, uint64_t offset,
     } else {
       uint64_t left = nanosecondsLeft(deadline);
       struct timespec remaining = {(time_t)(left / 1000000000), (long)(left % 1000000000)};
-      result = left ? pthread_cond_timedwait_relative_np(&waiter.condition, &bucket->lock, &remaining) : ETIMEDOUT;
+      result = left ? pg_cond_timedwait_relative(&waiter.condition, &bucket->lock, &remaining) : ETIMEDOUT;
     }
   }
   bool notified = atomic_load_explicit(&waiter.notified, memory_order_relaxed);
@@ -230,7 +277,7 @@ uint32_t pg_atomic_notify(wasm_rt_shared_memory_t *m, uint64_t offset,
       atomic_store_explicit(&w->notified, 1, memory_order_release);
       // Woken after the lock is released, so the woken thread doesn't block on it; past 64 at once, now.
       if (woken < 64) wake[woken++] = w;
-      else if (__builtin_available(iOS 17.4, macOS 14.4, *)) os_sync_wake_by_address_any(&w->notified, 4, OS_SYNC_WAKE_BY_ADDRESS_NONE);
+      else pg_address_wake(&w->notified);
     } else {
       atomic_store_explicit(&w->notified, 1, memory_order_relaxed);
       pthread_cond_signal(&w->condition);
@@ -239,7 +286,7 @@ uint32_t pg_atomic_notify(wasm_rt_shared_memory_t *m, uint64_t offset,
   pthread_mutex_unlock(&bucket->lock);
   // A woken waiter can return and reuse its stack as soon as it sees notified = 1; a wake on that stale word
   // reaches nobody, or a later wait of the same thread on the same slot, which re-checks its own word.
-  if (__builtin_available(iOS 17.4, macOS 14.4, *))
-    for (uint32_t i = 0; i < woken; i++) os_sync_wake_by_address_any(&wake[i]->notified, 4, OS_SYNC_WAKE_BY_ADDRESS_NONE);
+  if (addressWait)
+    for (uint32_t i = 0; i < woken; i++) pg_address_wake(&wake[i]->notified);
   return total;
 }
