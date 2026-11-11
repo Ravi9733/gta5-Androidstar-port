@@ -17,8 +17,43 @@ bool PGAndroidCreateShaderModule(
         default: return false;
     }
     std::vector<PGAndroidDescriptorBinding> descriptors;
-    if (!PGAndroidBuildShaderDescriptorBindings(stageIndex, resources, resourceCount,
-                                                 state, descriptors)) return false;
+    descriptors.reserve(resourceCount);
+    const VkShaderStageFlags stageFlags=stage;
+    for (uint32_t i=0;i<resourceCount;++i) {
+        const auto &resource=resources[i];
+        PGAndroidDescriptorBinding binding{};
+        binding.binding=resource.binding;
+        binding.stageFlags=stageFlags;
+        switch (resource.kind) {
+            case PG_ANDROID_RES_UNIFORM_BUFFER:
+                if (resource.binding >= 15) return false;
+                binding.type=VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                break;
+            case PG_ANDROID_RES_STORAGE_READ_ONLY:
+            case PG_ANDROID_RES_STORAGE_READ_WRITE:
+                if (resource.binding < 32 || resource.binding >= 176) return false;
+                binding.type=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                break;
+            case PG_ANDROID_RES_SAMPLER:
+                if (resource.binding < 16 || resource.binding >= 32) return false;
+                binding.type=VK_DESCRIPTOR_TYPE_SAMPLER;
+                break;
+            case PG_ANDROID_RES_TEXTURE:
+            case PG_ANDROID_RES_TEXTURE_MS:
+            case PG_ANDROID_RES_DEPTH_TEXTURE:
+            case PG_ANDROID_RES_DEPTH_TEXTURE_MS:
+                if (resource.binding < 32 || resource.binding >= 160) return false;
+                binding.type=VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+                break;
+            case PG_ANDROID_RES_STORAGE_TEXTURE:
+                if (resource.binding < 160 || resource.binding >= 176) return false;
+                binding.type=VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                break;
+            default: return false;
+        }
+        descriptors.push_back(binding);
+    }
+    (void)state; // Resources are resolved from live SET_* state immediately before a draw/dispatch.
     VkShaderModuleCreateInfo info{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
     info.codeSize=byteCount;
     info.pCode=spirv;
