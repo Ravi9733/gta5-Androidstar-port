@@ -24,8 +24,8 @@ public final class SettingsActivity extends Activity {
     private static final String[] PRESETS = {
         "Ultra Performance", "Battery", "Performance", "Balanced", "Quality", "Ultra", "Max"
     };
-    private static final int[] FPS_VALUES = {30, 40, 60, 0};
-    private static final String[] FPS_LABELS = {"30 FPS", "40 FPS", "60 FPS", "Unlocked"};
+    private int[] fpsValues;
+    private String[] fpsLabels;
 
     private Spinner presetSpinner;
     private Spinner fpsSpinner;
@@ -94,7 +94,11 @@ public final class SettingsActivity extends Activity {
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
-        fpsSpinner = spinner(FPS_LABELS);
+        boolean supports40 = supports40FPS();
+        fpsValues = supports40 ? new int[]{30, 40, 60, 0} : new int[]{30, 60, 0};
+        fpsLabels = supports40 ? new String[]{"30 FPS", "40 FPS", "60 FPS", "Unlocked"}
+            : new String[]{"30 FPS", "60 FPS", "Unlocked"};
+        fpsSpinner = spinner(fpsLabels);
         addSetting(column, "Frame rate limit", "Choose the target frame rate", fpsSpinner);
         sharperSwitch = new Switch(this);
         sharperSwitch.setText("Sharper upscaling");
@@ -135,7 +139,7 @@ public final class SettingsActivity extends Activity {
     private void loadSettings() {
         android.content.SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         presetSpinner.setSelection(indexOf(PRESET_VALUES, prefs.getInt("graphicsPreset", 1)));
-        fpsSpinner.setSelection(indexOf(FPS_VALUES, prefs.getInt("frameRateCap", 60)));
+        fpsSpinner.setSelection(indexOf(fpsValues, prefs.getInt("frameRateCap", 60)));
         resolution.setProgress(Math.max(0, Math.min(50,
             (int)Math.round((prefs.getFloat("resolutionScale", 1.0f) - 0.5f) * 100))));
         resolutionValue.setText((50 + resolution.getProgress()) + "%");
@@ -146,7 +150,7 @@ public final class SettingsActivity extends Activity {
 
     private void saveSettings() {
         int preset = PRESET_VALUES[presetSpinner.getSelectedItemPosition()];
-        int fps = FPS_VALUES[fpsSpinner.getSelectedItemPosition()];
+        int fps = fpsValues[fpsSpinner.getSelectedItemPosition()];
         int cap = 0;
         try { cap = Math.max(0, Integer.parseInt(memoryCap.getText().toString().trim())); }
         catch (NumberFormatException ignored) {}
@@ -161,6 +165,13 @@ public final class SettingsActivity extends Activity {
             .apply();
         android.widget.Toast.makeText(this,
             "Saved. Engine integration is still in progress.", android.widget.Toast.LENGTH_LONG).show();
+    }
+
+    private boolean supports40FPS() {
+        float maximum = 0;
+        for (android.view.Display.Mode mode : getWindowManager().getDefaultDisplay().getSupportedModes())
+            maximum = Math.max(maximum, mode.getRefreshRate());
+        return maximum >= 120.0f;
     }
 
     private int indexOf(int[] values, int target) {
