@@ -4,6 +4,7 @@
 #include <android/native_window_jni.h>
 #include <android/log.h>
 #include <vulkan/vulkan.h>
+#include "../../../../../app/Source/EngineHost.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -235,4 +236,25 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_ravi_gta5port_MainActivity_nativeDestroy(JNIEnv *, jclass) {
     std::lock_guard<std::mutex> lock(host.mutex);
     destroyLocked();
+}
+
+extern "C" void PGUpdateController(PGControllerState state, double elapsedSeconds) __attribute__((weak));
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_ravi_gta5port_MainActivity_nativeUpdateController(
+    JNIEnv *, jclass, jfloat leftX, jfloat leftY, jfloat rightX, jfloat rightY,
+    jfloat leftTrigger, jfloat rightTrigger, jint buttons, jint lookDX, jint lookDY,
+    jdouble elapsedSeconds) {
+    if (!PGUpdateController) return; // EngineHost is linked in a later integration stage.
+    PGControllerState state{};
+    state.leftX = leftX;
+    state.leftY = leftY;
+    state.rightX = rightX;
+    state.rightY = rightY;
+    state.leftTrigger = leftTrigger;
+    state.rightTrigger = rightTrigger;
+    state.buttons = static_cast<uint32_t>(buttons);
+    state.lookDX = lookDX;
+    state.lookDY = lookDY;
+    PGUpdateController(state, elapsedSeconds);
 }
