@@ -40,7 +40,7 @@ add_custom_target(android_gpu_protocol ALL
 )
 
 add_library(gta5_android SHARED
-    vulkan_host.cpp android_graphics_host.cpp gpu_command_ring.cpp gpu_resources.cpp gpu_descriptor_writer.cpp gpu_descriptor_pool.cpp gpu_shader_bindings.cpp gpu_shader_module.cpp gpu_pipeline_layout.cpp gpu_pipeline.cpp
+    vulkan_host.cpp android_graphics_host.cpp gpu_command_ring.cpp gpu_resources.cpp gpu_descriptor_writer.cpp gpu_descriptor_pool.cpp gpu_shader_bindings.cpp gpu_shader_module.cpp gpu_pipeline_layout.cpp gpu_pipeline.cpp gpu_draw_commands.cpp
     "${PORT_SOURCE_DIR}/BCTextureDecoder.c")
 add_dependencies(gta5_android android_gpu_protocol android_bc_decoder)
 target_compile_features(gta5_android PRIVATE cxx_std_20)
