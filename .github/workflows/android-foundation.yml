@@ -74,6 +74,14 @@ jobs:
             -o "$RUNNER_TEMP/pgandroid-gpu/ring-test"
           "$RUNNER_TEMP/pgandroid-gpu/ring-test"
 
+      - name: Test Android BC texture decoder
+        run: |
+          mkdir -p "$RUNNER_TEMP/pgandroid-bc"
+          python3 app/Scripts/prepare_android_bc_decoder.py --output "$RUNNER_TEMP/pgandroid-bc/bcdec.h"
+          python3 app/Scripts/test_android_bc_decoder.py \
+            --header "$RUNNER_TEMP/pgandroid-bc/bcdec.h" \
+            --source app/Source
+
       - name: Build arm64 debug APK
         run: gradle -p android --no-daemon assembleDebug
 
