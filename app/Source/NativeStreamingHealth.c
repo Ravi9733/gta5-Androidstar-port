@@ -10,7 +10,19 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#if defined(__ANDROID__)
+#include <pthread.h>
+#define PG_STREAM_LOCK pthread_mutex_t
+#define PG_STREAM_LOCK_INIT PTHREAD_MUTEX_INITIALIZER
+#define pg_stream_lock() pthread_mutex_lock(&lock)
+#define pg_stream_unlock() pthread_mutex_unlock(&lock)
+#else
 #include <os/lock.h>
+#define PG_STREAM_LOCK os_unfair_lock
+#define PG_STREAM_LOCK_INIT OS_UNFAIR_LOCK_INIT
+#define pg_stream_lock() os_unfair_lock_lock(&lock)
+#define pg_stream_unlock() os_unfair_lock_unlock(&lock)
+#endif
 
 #define SLOTS 16384u		// power of two; requests beyond three quarters of it are counted but not timed
 #define SLOW_MS 10000u
@@ -31,9 +43,16 @@ static int status(uint32_t index) {
 }
 static struct { uint32_t key, ms; } table[SLOTS];	// key = engine index + 1 (0 = empty), ms = when requested
 static uint32_t used, loadedCount, removedCount, waits[512], waitCount;
-static os_unfair_lock lock = OS_UNFAIR_LOCK_INIT;
+static PG_STREAM_LOCK lock = PG_STREAM_LOCK_INIT;
 
-static uint32_t nowMS(void) { return (uint32_t)(clock_gettime_nsec_np(CLOCK_UPTIME_RAW) / 1000000); }
+static uint32_t nowMS(void) {
+#if defined(__ANDROID__)
+  struct timespec now; clock_gettime(CLOCK_MONOTONIC, &now);
+  return (uint32_t)((uint64_t)now.tv_sec * 1000ull + (uint64_t)now.tv_nsec / 1000000ull);
+#else
+  return (uint32_t)(clock_gettime_nsec_np(CLOCK_UPTIME_RAW) / 1000000);
+#endif
+}
 static uint32_t home(uint32_t key) { return (key * 2654435761u) >> 18; }
 
 // Linear probing. Erasing shifts the following entries back, so a lookup never stops at a hole.
@@ -59,13 +78,13 @@ static void erase(uint32_t i) {
 void pg_stream_requested(uint32_t index) {
 	if (status(index) == LOADED) return;	// kept, not loaded again
 	uint32_t key = index + 1, now = nowMS();
-	os_unfair_lock_lock(&lock);
+	pg_stream_lock();
 	if (used < SLOTS / 4 * 3) {
 		uint32_t i = home(key);
 		while (table[i].key && table[i].key != key) i = (i + 1) & (SLOTS - 1);
 		if (!table[i].key) { table[i].key = key; table[i].ms = now; used++; }
 	}
-	os_unfair_lock_unlock(&lock);
+	pg_stream_unlock();
 }
 
 // Trace (PG_TRACE_STREAM_LOADS, GTA-148): loads per object, to find what streams in again and again; the engine
@@ -84,7 +103,7 @@ static void countLoad(uint32_t index) {
 // The `max` most-loaded objects since the last call (index, count), most first; resets the counts.
 int PGStreamTopLoads(uint32_t *index, uint32_t *count, int max) {
 	int n = 0;
-	os_unfair_lock_lock(&lock);
+	pg_stream_lock();
 	for (uint32_t i = 0; i < 8192; i++) {
 		if (!loads[i].key) continue;
 		const uint32_t c = loads[i].count;
@@ -96,7 +115,7 @@ int PGStreamTopLoads(uint32_t *index, uint32_t *count, int max) {
 		index[at] = loads[i].key - 1; count[at] = c;
 	}
 	memset(loads, 0, sizeof loads);
-	os_unfair_lock_unlock(&lock);
+	pg_stream_unlock();
 	return n;
 }
 
@@ -120,7 +139,7 @@ uint32_t pg_may_evict(uint32_t index) {
 void pg_stream_loaded(uint32_t index) {
 	uint32_t now = nowMS();
 	loadedAt[index & 65535] = now ? now : 1;
-	os_unfair_lock_lock(&lock);
+	pg_stream_lock();
 	countLoad(index);
 	int i = lookup(index + 1);
 	if (i >= 0) {
@@ -129,15 +148,15 @@ void pg_stream_loaded(uint32_t index) {
 		erase((uint32_t)i);
 	}
 	loadedCount++;
-	os_unfair_lock_unlock(&lock);
+	pg_stream_unlock();
 }
 
 void pg_stream_removed(uint32_t index) {
-	os_unfair_lock_lock(&lock);
+	pg_stream_lock();
 	int i = lookup(index + 1);
 	if (i >= 0) erase((uint32_t)i);
 	removedCount++;
-	os_unfair_lock_unlock(&lock);
+	pg_stream_unlock();
 }
 
 static int byValue(const void *a, const void *b) {
@@ -149,7 +168,7 @@ static int byValue(const void *a, const void *b) {
 // 95th-percentile wait ms, unloaded}.
 void PGStreamingHealth(uint64_t out[6]) {
 	uint32_t now = nowMS(), waiting = 0, slow = 0, done[1024], doneCount = 0;
-	os_unfair_lock_lock(&lock);
+	pg_stream_lock();
 	for (uint32_t i = 0; i < SLOTS; i++) {
 		if (!table[i].key) continue;
 		int state = status(table[i].key - 1);
@@ -169,5 +188,5 @@ void PGStreamingHealth(uint64_t out[6]) {
 	out[4] = waitCount ? waits[waitCount * 95 / 100] : 0;
 	out[5] = removedCount;
 	loadedCount = removedCount = waitCount = 0;
-	os_unfair_lock_unlock(&lock);
+	pg_stream_unlock();
 }
