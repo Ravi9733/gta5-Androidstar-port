@@ -8,7 +8,9 @@
 // each deletion's native call stack (image offsets, for atos) and logs it with the skipped entry.
 #include "HostInternal.h"
 #include <execinfo.h>
+#if !defined(__ANDROID__)
 #include <mach-o/dyld.h>
+#endif
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,7 +42,11 @@ void pg_pool_deleted(w2c_game *instance, u64 pool, u64 item) {
   if (mode & 2) {
     void *frames[FRAMES + 1];
     int n = backtrace(frames, FRAMES + 1);
+#if defined(__ANDROID__)
+    const uintptr_t image = 0; // Log raw backtrace addresses; Android has no Mach-O image base.
+#else
     const uintptr_t image = (uintptr_t)_dyld_get_image_header(0);
+#endif
     for (int i = 1; i < n; i++) d.trace[i - 1] = (uintptr_t)frames[i] - image;
     d.frames = n > 1 ? (uint32_t)n - 1 : 0;
   }
