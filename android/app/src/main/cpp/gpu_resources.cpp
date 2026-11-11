@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstring>
 #include <limits>
+#include <vector>
 
 namespace {
 constexpr uint32_t kBindVertex = 0x01;
@@ -18,45 +19,90 @@ namespace {
 VkFormat dxgiToVkFormat(uint32_t dxgi) {
     switch (dxgi) {
         case 2: return VK_FORMAT_R32G32B32A32_SFLOAT;
-        case 10: return VK_FORMAT_R16G16B16A16_SFLOAT;
+        case 9: case 10: return VK_FORMAT_R16G16B16A16_SFLOAT;
         case 16: return VK_FORMAT_R32G32_SFLOAT;
-        case 28: return VK_FORMAT_R8G8B8A8_UNORM;
+        case 27: case 28: return VK_FORMAT_R8G8B8A8_UNORM;
         case 29: return VK_FORMAT_R8G8B8A8_SRGB;
-        case 34: return VK_FORMAT_R16G16_SFLOAT;
+        case 33: case 34: return VK_FORMAT_R16G16_SFLOAT;
         case 40: return VK_FORMAT_D32_SFLOAT;
         case 41: return VK_FORMAT_R32_SFLOAT;
-        case 45: return VK_FORMAT_D24_UNORM_S8_UINT;
-        case 49: return VK_FORMAT_R8G8_UNORM;
+        case 44: case 45: case 21: case 22: case 46: case 47: return VK_FORMAT_D24_UNORM_S8_UINT;
+        case 48: case 49: return VK_FORMAT_R8G8_UNORM;
         case 54: return VK_FORMAT_R16_SFLOAT;
         case 55: return VK_FORMAT_D16_UNORM;
-        case 61: case 65: return VK_FORMAT_R8_UNORM;
-        case 71: return VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
+        case 60: case 61: case 65: return VK_FORMAT_R8_UNORM;
+        case 70: case 71: return VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
         case 72: return VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
-        case 74: return VK_FORMAT_BC2_UNORM_BLOCK;
+        case 73: case 74: return VK_FORMAT_BC2_UNORM_BLOCK;
         case 75: return VK_FORMAT_BC2_SRGB_BLOCK;
-        case 77: return VK_FORMAT_BC3_UNORM_BLOCK;
+        case 76: case 77: return VK_FORMAT_BC3_UNORM_BLOCK;
         case 78: return VK_FORMAT_BC3_SRGB_BLOCK;
-        case 80: return VK_FORMAT_BC4_UNORM_BLOCK;
+        case 79: case 80: return VK_FORMAT_BC4_UNORM_BLOCK;
         case 81: return VK_FORMAT_BC4_SNORM_BLOCK;
-        case 83: return VK_FORMAT_BC5_UNORM_BLOCK;
+        case 82: case 83: return VK_FORMAT_BC5_UNORM_BLOCK;
         case 84: return VK_FORMAT_BC5_SNORM_BLOCK;
         case 87: return VK_FORMAT_B8G8R8A8_UNORM;
         case 91: return VK_FORMAT_B8G8R8A8_SRGB;
-        case 95: return VK_FORMAT_BC6H_UFLOAT_BLOCK;
+        case 94: case 95: return VK_FORMAT_BC6H_UFLOAT_BLOCK;
         case 96: return VK_FORMAT_BC6H_SFLOAT_BLOCK;
-        case 98: return VK_FORMAT_BC7_UNORM_BLOCK;
+        case 97: case 98: return VK_FORMAT_BC7_UNORM_BLOCK;
         case 99: return VK_FORMAT_BC7_SRGB_BLOCK;
         default: return VK_FORMAT_UNDEFINED;
     }
 }
+
+struct FormatBlock {
+    uint32_t width;
+    uint32_t height;
+    uint32_t bytes;
+};
+bool formatBlock(VkFormat format, FormatBlock &block) {
+    switch (format) {
+        case VK_FORMAT_BC1_RGBA_UNORM_BLOCK:
+        case VK_FORMAT_BC1_RGBA_SRGB_BLOCK:
+        case VK_FORMAT_BC4_UNORM_BLOCK:
+        case VK_FORMAT_BC4_SNORM_BLOCK:
+            block = {4, 4, 8}; return true;
+        case VK_FORMAT_BC2_UNORM_BLOCK:
+        case VK_FORMAT_BC2_SRGB_BLOCK:
+        case VK_FORMAT_BC3_UNORM_BLOCK:
+        case VK_FORMAT_BC3_SRGB_BLOCK:
+        case VK_FORMAT_BC5_UNORM_BLOCK:
+        case VK_FORMAT_BC5_SNORM_BLOCK:
+        case VK_FORMAT_BC6H_UFLOAT_BLOCK:
+        case VK_FORMAT_BC6H_SFLOAT_BLOCK:
+        case VK_FORMAT_BC7_UNORM_BLOCK:
+        case VK_FORMAT_BC7_SRGB_BLOCK:
+            block = {4, 4, 16}; return true;
+        case VK_FORMAT_R32G32B32A32_SFLOAT: block = {1,1,16}; return true;
+        case VK_FORMAT_R16G16B16A16_SFLOAT: block = {1,1,8}; return true;
+        case VK_FORMAT_R32G32_SFLOAT: block = {1,1,8}; return true;
+        case VK_FORMAT_R8G8B8A8_UNORM:
+        case VK_FORMAT_R8G8B8A8_SRGB:
+        case VK_FORMAT_B8G8R8A8_UNORM:
+        case VK_FORMAT_B8G8R8A8_SRGB:
+        case VK_FORMAT_D24_UNORM_S8_UINT:
+            block = {1,1,4}; return true;
+        case VK_FORMAT_R16G16_SFLOAT: block = {1,1,4}; return true;
+        case VK_FORMAT_R8G8_UNORM: block = {1,1,2}; return true;
+        case VK_FORMAT_R32_SFLOAT:
+        case VK_FORMAT_D32_SFLOAT: block = {1,1,4}; return true;
+        case VK_FORMAT_R16_SFLOAT:
+        case VK_FORMAT_D16_UNORM: block = {1,1,2}; return true;
+        case VK_FORMAT_R8_UNORM: block = {1,1,1}; return true;
+        default: return false;
+    }
+}
+
 bool isDepthVkFormat(VkFormat format) {
     return format == VK_FORMAT_D16_UNORM || format == VK_FORMAT_D24_UNORM_S8_UINT ||
            format == VK_FORMAT_D32_SFLOAT || format == VK_FORMAT_D32_SFLOAT_S8_UINT;
 }
 }
 
-PGAndroidGpuResources::PGAndroidGpuResources(VkPhysicalDevice physical, VkDevice device)
-    : physical_(physical), device_(device) {}
+PGAndroidGpuResources::PGAndroidGpuResources(VkPhysicalDevice physical, VkDevice device,
+                                                   VkQueue queue, uint32_t queueFamily)
+    : physical_(physical), device_(device), queue_(queue), queueFamily_(queueFamily) {}
 
 PGAndroidGpuResources::~PGAndroidGpuResources() { reset(); }
 
@@ -78,7 +124,7 @@ uint32_t PGAndroidGpuResources::findMemoryType(
 bool PGAndroidGpuResources::createBuffer(const uint32_t *p, uint32_t n) {
     if (!p || n < 5) return false;
     const uint32_t id = p[0], bytes = p[1], bind = p[2];
-    if (!id || !bytes || bytes > kMaxBufferBytes || buffers_.count(id)) return false;
+    if (!id || !bytes || bytes > kMaxBufferBytes || buffers_.count(id) || textures_.count(id)) return false;
 
     VkBufferUsageFlags usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
                                VK_BUFFER_USAGE_TRANSFER_DST_BIT;
@@ -136,6 +182,7 @@ bool PGAndroidGpuResources::createTexture(const uint32_t *p, uint32_t n) {
     uint32_t maxMips=1;
     for (uint32_t d=maxDimension; d>1; d>>=1) ++maxMips;
     if (mipLevels > maxMips || (dim == 1 && height != 1) ||
+        (dim == 1 && depth != 1) || (dim == 2 && depth != 1) ||
         (dim == 3 && layers != 1) || (samples > 1 && (mipLevels != 1 || dim != 2)))
         return false;
 
@@ -168,6 +215,9 @@ bool PGAndroidGpuResources::createTexture(const uint32_t *p, uint32_t n) {
     info.initialLayout=VK_IMAGE_LAYOUT_UNDEFINED;
 
     TextureResource resource{};
+    resource.width=width; resource.height=height; resource.depth=depth;
+    resource.mipLevels=mipLevels; resource.layers=layers; resource.dimension=dim;
+    resource.bind=bind; resource.format=format;
     if (vkCreateImage(device_, &info, nullptr, &resource.image) != VK_SUCCESS) return false;
     VkMemoryRequirements requirements{};
     vkGetImageMemoryRequirements(device_, resource.image, &requirements);
@@ -226,6 +276,167 @@ bool PGAndroidGpuResources::uploadBuffer(const uint32_t *p, uint32_t n) {
         }
     }
     return true;
+}
+
+
+bool PGAndroidGpuResources::uploadTexture(const uint32_t *p, uint32_t n) {
+    if (!p || n < 12) return false;
+    const uint32_t id=p[0], mip=p[1], slice=p[2], x=p[3], y=p[4], z=p[5];
+    const uint32_t width=p[6], height=p[7], depth=p[8], rowPitch=p[9];
+    const uint32_t rowsPerImage=p[10], dataBytes=p[11];
+    auto found=textures_.find(id);
+    if (found == textures_.end()) return false;
+    TextureResource &texture=found->second;
+    if (!dataBytes || static_cast<uint64_t>(dataBytes) >
+        static_cast<uint64_t>(n-12u)*sizeof(uint32_t) || mip >= texture.mipLevels ||
+        !width || !height || !depth) return false;
+
+    const uint32_t mipWidth=std::max(1u, texture.width >> mip);
+    const uint32_t mipHeight=texture.dimension == 1 ? 1u : std::max(1u, texture.height >> mip);
+    const uint32_t mipDepth=texture.dimension == 3 ? std::max(1u, texture.depth >> mip) : 1u;
+    if (x > mipWidth || width > mipWidth-x || y > mipHeight || height > mipHeight-y ||
+        z > mipDepth || depth > mipDepth-z) return false;
+    if (texture.dimension == 1 && (y || z || height != 1 || depth != 1)) return false;
+    if (texture.dimension == 2 && (z || depth > texture.layers ||
+        slice > texture.layers || depth > texture.layers-slice)) return false;
+    if (texture.dimension == 3 && (slice || depth > mipDepth-z)) return false;
+
+    FormatBlock block{};
+    if (!formatBlock(texture.format, block)) return false;
+    if ((block.width > 1 && ((x % block.width) || (width % block.width && x+width != mipWidth))) ||
+        (block.height > 1 && ((y % block.height) || (height % block.height && y+height != mipHeight))))
+        return false;
+    const uint32_t blockColumns=(width+block.width-1)/block.width;
+    const uint32_t blockRows=(height+block.height-1)/block.height;
+    const uint64_t tightRow=static_cast<uint64_t>(blockColumns)*block.bytes;
+    const uint32_t actualRowPitch=rowPitch ? rowPitch : static_cast<uint32_t>(tightRow);
+    const uint32_t actualRows=rowsPerImage ? rowsPerImage : blockRows;
+    if (actualRowPitch < tightRow || actualRowPitch % block.bytes ||
+        actualRows < blockRows) return false;
+    const uint64_t imageBytes=static_cast<uint64_t>(actualRowPitch)*actualRows;
+    const uint64_t requiredBytes=imageBytes*(depth-1u)+
+        static_cast<uint64_t>(actualRowPitch)*blockRows;
+    if (requiredBytes > dataBytes || requiredBytes > SIZE_MAX) return false;
+
+    VkBuffer staging=VK_NULL_HANDLE;
+    VkDeviceMemory stagingMemory=VK_NULL_HANDLE;
+    void *mapped=nullptr;
+    VkBufferCreateInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    bufferInfo.size=dataBytes;
+    bufferInfo.usage=VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    bufferInfo.sharingMode=VK_SHARING_MODE_EXCLUSIVE;
+    if (vkCreateBuffer(device_, &bufferInfo, nullptr, &staging) != VK_SUCCESS) return false;
+    VkMemoryRequirements memoryRequirements{};
+    vkGetBufferMemoryRequirements(device_, staging, &memoryRequirements);
+    const uint32_t memoryType=findMemoryType(memoryRequirements.memoryTypeBits,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if (memoryType == UINT32_MAX) { vkDestroyBuffer(device_, staging, nullptr); return false; }
+    VkMemoryAllocateInfo allocation{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    allocation.allocationSize=memoryRequirements.size;
+    allocation.memoryTypeIndex=memoryType;
+    VkPhysicalDeviceMemoryProperties memoryProperties{};
+    vkGetPhysicalDeviceMemoryProperties(physical_, &memoryProperties);
+    const VkMemoryPropertyFlags memoryFlags=memoryProperties.memoryTypes[memoryType].propertyFlags;
+    if (vkAllocateMemory(device_, &allocation, nullptr, &stagingMemory) != VK_SUCCESS ||
+        vkBindBufferMemory(device_, staging, stagingMemory, 0) != VK_SUCCESS ||
+        vkMapMemory(device_, stagingMemory, 0, VK_WHOLE_SIZE, 0, &mapped) != VK_SUCCESS) {
+        if (stagingMemory) vkFreeMemory(device_, stagingMemory, nullptr);
+        vkDestroyBuffer(device_, staging, nullptr);
+        return false;
+    }
+    std::memcpy(mapped, p+12, dataBytes);
+    if (!(memoryFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+        VkMappedMemoryRange range{VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE};
+        range.memory=stagingMemory; range.offset=0; range.size=VK_WHOLE_SIZE;
+        if (vkFlushMappedMemoryRanges(device_, 1, &range) != VK_SUCCESS) {
+            vkUnmapMemory(device_, stagingMemory);
+            vkDestroyBuffer(device_, staging, nullptr);
+            vkFreeMemory(device_, stagingMemory, nullptr);
+            return false;
+        }
+    }
+
+    VkCommandPool pool=VK_NULL_HANDLE;
+    VkCommandBuffer command=VK_NULL_HANDLE;
+    VkCommandPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+    poolInfo.flags=VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+    poolInfo.queueFamilyIndex=queueFamily_;
+    bool ok=vkCreateCommandPool(device_, &poolInfo, nullptr, &pool) == VK_SUCCESS;
+    if (ok) {
+        VkCommandBufferAllocateInfo commandInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+        commandInfo.commandPool=pool; commandInfo.level=VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        commandInfo.commandBufferCount=1;
+        ok=vkAllocateCommandBuffers(device_, &commandInfo, &command) == VK_SUCCESS;
+    }
+    if (ok) {
+        VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+        begin.flags=VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        ok=vkBeginCommandBuffer(command, &begin) == VK_SUCCESS;
+    }
+    if (ok) {
+        VkImageMemoryBarrier toTransfer{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+        toTransfer.srcAccessMask=texture.layout == VK_IMAGE_LAYOUT_UNDEFINED ? 0 :
+            (texture.layout == VK_IMAGE_LAYOUT_GENERAL ? VK_ACCESS_MEMORY_READ_BIT|VK_ACCESS_MEMORY_WRITE_BIT :
+             VK_ACCESS_SHADER_READ_BIT);
+        toTransfer.dstAccessMask=VK_ACCESS_TRANSFER_WRITE_BIT;
+        toTransfer.oldLayout=texture.layout;
+        toTransfer.newLayout=VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        toTransfer.srcQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED;
+        toTransfer.dstQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED;
+        toTransfer.image=texture.image;
+        toTransfer.subresourceRange.aspectMask=isDepthVkFormat(texture.format) ?
+            VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+        if (texture.format == VK_FORMAT_D24_UNORM_S8_UINT ||
+            texture.format == VK_FORMAT_D32_SFLOAT_S8_UINT)
+            toTransfer.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+        toTransfer.subresourceRange.baseMipLevel=0;
+        toTransfer.subresourceRange.levelCount=texture.mipLevels;
+        toTransfer.subresourceRange.baseArrayLayer=0;
+        toTransfer.subresourceRange.layerCount=texture.dimension == 3 ? 1u : texture.layers;
+        vkCmdPipelineBarrier(command,
+            texture.layout == VK_IMAGE_LAYOUT_UNDEFINED ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT :
+                VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &toTransfer);
+
+        VkBufferImageCopy copy{};
+        copy.bufferOffset=0;
+        copy.bufferRowLength=actualRowPitch == tightRow ? 0 :
+            (actualRowPitch / block.bytes) * block.width;
+        copy.bufferImageHeight=rowsPerImage ? actualRows*block.height : 0;
+        copy.imageSubresource.aspectMask=toTransfer.subresourceRange.aspectMask;
+        copy.imageSubresource.mipLevel=mip;
+        copy.imageSubresource.baseArrayLayer=texture.dimension == 3 ? 0u : slice;
+        copy.imageSubresource.layerCount=texture.dimension == 3 ? 1u : depth;
+        copy.imageOffset={static_cast<int32_t>(x),static_cast<int32_t>(y),
+                          static_cast<int32_t>(texture.dimension == 3 ? z : 0u)};
+        copy.imageExtent={width,height,texture.dimension == 3 ? depth : 1u};
+        vkCmdCopyBufferToImage(command, staging, texture.image,
+                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+
+        const VkImageLayout finalLayout=(texture.bind & kBindShaderResource) ?
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_GENERAL;
+        VkImageMemoryBarrier toFinal=toTransfer;
+        toFinal.srcAccessMask=VK_ACCESS_TRANSFER_WRITE_BIT;
+        toFinal.dstAccessMask=finalLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL ?
+            VK_ACCESS_SHADER_READ_BIT : VK_ACCESS_MEMORY_READ_BIT|VK_ACCESS_MEMORY_WRITE_BIT;
+        toFinal.oldLayout=VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        toFinal.newLayout=finalLayout;
+        vkCmdPipelineBarrier(command, VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &toFinal);
+        ok=vkEndCommandBuffer(command) == VK_SUCCESS;
+        if (ok) {
+            VkSubmitInfo submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+            submit.commandBufferCount=1; submit.pCommandBuffers=&command;
+            ok=vkQueueSubmit(queue_, 1, &submit, VK_NULL_HANDLE) == VK_SUCCESS;
+            if (ok) ok=vkQueueWaitIdle(queue_) == VK_SUCCESS;
+            if (ok) texture.layout=finalLayout;
+        }
+    }
+    if (pool) vkDestroyCommandPool(device_, pool, nullptr);
+    vkUnmapMemory(device_, stagingMemory);
+    vkDestroyBuffer(device_, staging, nullptr);
+    vkFreeMemory(device_, stagingMemory, nullptr);
+    return ok;
 }
 
 bool PGAndroidGpuResources::destroyObject(uint32_t id) {
