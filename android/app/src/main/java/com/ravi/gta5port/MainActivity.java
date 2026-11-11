@@ -180,10 +180,11 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         playButton = new Button(this);
         playButton.setText("PLAY  ·  ENGINE NOT CONNECTED");
         playButton.setTextSize(13);
-        playButton.setTextColor(0xffd4dbe6);
+        playButton.setTextColor(Color.WHITE);
         playButton.setAllCaps(false);
         playButton.setEnabled(false);
-        playButton.setBackground(round(0xff394252, dp(14), 0xff596579));
+        playButton.setBackground(PortTheme.primary(14, getResources().getDisplayMetrics().density));
+        playButton.setAlpha(0.62f);
         LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, dp(54));
         playParams.topMargin = dp(17);

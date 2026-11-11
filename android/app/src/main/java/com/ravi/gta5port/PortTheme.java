@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
@@ -19,8 +20,8 @@ final class PortTheme {
     static final int TEXT = 0xffffffff;
     static final int SECONDARY = 0xadffffff;
     static final int TERTIARY = 0x73ffffff;
-    static final int PANEL_FILL = 0x1cffffff;
-    static final int PANEL_STROKE = 0x1fffffff;
+    static final int PANEL_FILL = 0x2affffff;
+    static final int PANEL_STROKE = 0x42ffffff;
     static final int ROW_SELECTED = 0x24ffffff;
     static final int OK = 0xff4ddb78;
     static final int WARNING = 0xffffc743;
@@ -33,7 +34,11 @@ final class PortTheme {
             BitmapDrawable image = new BitmapDrawable(context.getResources(),
                 BitmapFactory.decodeStream(input));
             image.setGravity(Gravity.FILL);
-            return image;
+            GradientDrawable sideShade = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{0xe6080d1a, 0xa6080d1a, 0x52080d1a, 0x10080d1a});
+            GradientDrawable bottomShade = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0x00080d1a, 0x12080d1a, 0x99080d1a});
+            return new LayerDrawable(new android.graphics.drawable.Drawable[]{image, sideShade, bottomShade});
         } catch (Exception ignored) {
             return backdrop();
         }
@@ -54,15 +59,15 @@ final class PortTheme {
 
     static GradientDrawable glassButton(float radiusDp, float density) {
         GradientDrawable shape = new GradientDrawable();
-        shape.setColor(0x20ffffff);
+        shape.setColor(0x28ffffff);
         shape.setCornerRadius(radiusDp * density);
-        shape.setStroke(Math.max(1, Math.round(density)), 0x30ffffff);
+        shape.setStroke(Math.max(1, Math.round(density)), 0x55ffffff);
         return shape;
     }
 
     static GradientDrawable selected(float radiusDp, float density) {
         GradientDrawable shape = new GradientDrawable();
-        shape.setColor(0x35ff9e2e);
+        shape.setColor(0x45ff9e2e);
         shape.setCornerRadius(radiusDp * density);
         shape.setStroke(Math.max(1, Math.round(density)), 0x99ffb45c);
         return shape;
