@@ -29,6 +29,18 @@ int main() {
     assert(!state.setShaderResources(badStage,3));
     const uint32_t overflow[] = {0,127,2,1,2};
     assert(!state.setShaderResources(overflow,5));
+
+    const uint32_t rt[] = {
+        100,1,2,3, 101,2,3,4, 102,3,4,5, 103,4,5,6,
+        104,5,6,7, 105,6,7,8, 106,7,8,9, 107,8,9,10,
+        200,9,10,11,12
+    };
+    assert(state.setRenderTargets(rt,37));
+    assert(state.renderTarget(0).viewId==100 && state.renderTarget(7).flags==10);
+    assert(state.depthTarget().viewId==200 && state.depthTarget().readOnly==12);
+    assert(!state.setRenderTargets(rt,36));
+    state.clear();
+    assert(state.renderTarget(0).viewId==0 && state.depthTarget().viewId==0);
     state.clear();
     assert(state.constantBuffer(1,14).objectId == 0);
     assert(state.shaderResource(2,127) == 0);
