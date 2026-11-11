@@ -23,6 +23,7 @@ public:
                           VkSampleCountFlagBits &samples) const;
     bool prepareAttachment(VkCommandBuffer commandBuffer, uint32_t viewId, bool depth,
                            VkImageView &view, VkFormat &format, VkSampleCountFlagBits &samples);
+    bool prepareShaderResource(VkCommandBuffer commandBuffer, uint32_t viewId, bool unorderedAccess);
     bool getImageDescriptor(uint32_t viewId, VkDescriptorImageInfo &out,
                             bool unorderedAccess) const;
     bool getBufferViewDescriptor(uint32_t viewId, VkDescriptorBufferInfo &out,
