@@ -5,6 +5,15 @@
 #include <cstring>
 #include <vector>
 
+static bool gAcceptPackets = true;
+static uint32_t gLastOpcode = UINT32_MAX;
+static uint32_t gExecutedPackets = 0;
+extern "C" bool PGAndroidExecuteGpuPacket(uint32_t opcode, const uint32_t *, uint32_t) {
+    gLastOpcode = opcode;
+    ++gExecutedPackets;
+    return gAcceptPackets;
+}
+
 static void put(std::vector<uint8_t> &ring, uint32_t at, uint32_t opcode, uint32_t words,
                 const uint32_t *payload = nullptr) {
     std::memcpy(ring.data() + at, &opcode, sizeof(opcode));
@@ -60,5 +69,39 @@ int main() {
     cursor.tail = 64;
     assert(PGAndroidGpuRingRead(unaligned.data() + 1, 256, 80, &cursor, &packet)
            == PG_ANDROID_RING_CORRUPT);
+    // The consumer advances only after a supported packet succeeds.
+    cursor.tail = 64;
+    put(ring, 64, PG_ANDROID_OP_CREATE_BUFFER, 2, payload);
+    uint32_t processed = 0;
+    gAcceptPackets = true;
+    gExecutedPackets = 0;
+    assert(PGAndroidConsumeGpuRing(ring.data(), ring.size(), 80, &cursor, 4, &processed));
+    assert(processed == 1 && cursor.tail == 80);
+    assert(gExecutedPackets == 1 && gLastOpcode == PG_ANDROID_OP_CREATE_BUFFER);
+
+    // An unsupported packet remains at the head of the queue for a later backend.
+    cursor.tail = 64;
+    put(ring, 64, PG_ANDROID_OP_DRAW, 0);
+    processed = 0;
+    gAcceptPackets = false;
+    assert(!PGAndroidConsumeGpuRing(ring.data(), ring.size(), 72, &cursor, 4, &processed));
+    assert(cursor.tail == 64 && processed == 0);
+
+    // WRAP is consumed, then the packet at the ring data start is processed.
+    cursor.tail = 240;
+    put(ring, 240, PG_ANDROID_OP_WRAP, 0);
+    put(ring, 64, PG_ANDROID_OP_CREATE_BUFFER, 2, payload);
+    gAcceptPackets = true;
+    processed = 0;
+    assert(PGAndroidConsumeGpuRing(ring.data(), ring.size(), 80, &cursor, 4, &processed));
+    assert(processed == 2 && cursor.tail == 80);
+
+    // NOP advances the ring without invoking the GPU backend.
+    cursor.tail = 64;
+    put(ring, 64, PG_ANDROID_OP_NOP, 0);
+    const uint32_t beforeNop = gExecutedPackets;
+    processed = 0;
+    assert(PGAndroidConsumeGpuRing(ring.data(), ring.size(), 72, &cursor, 4, &processed));
+    assert(processed == 1 && cursor.tail == 72 && gExecutedPackets == beforeNop);
     return 0;
-}
+n}
