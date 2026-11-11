@@ -207,7 +207,7 @@ bool PGAndroidGpuResources::createTexture(const uint32_t *p, uint32_t n) {
     const uint32_t mipLevels=p[5], layers=p[6], dxgi=p[7], bind=p[8], samples=p[9];
     if (!id || !width || !height || !depth || !mipLevels || !layers ||
         dim < 1 || dim > 3 || samples == 0 || (samples & (samples-1)) ||
-        textures_.count(id) || buffers_.count(id)) return false;
+        textures_.count(id) || buffers_.count(id) || views_.count(id)) return false;
     const uint32_t maxDimension = std::max(width, std::max(height, depth));
     uint32_t maxMips=1;
     for (uint32_t d=maxDimension; d>1; d>>=1) ++maxMips;
@@ -245,6 +245,7 @@ bool PGAndroidGpuResources::createTexture(const uint32_t *p, uint32_t n) {
     }
 
     VkImageCreateInfo info{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+    info.flags = (dim == 2 && layers >= 6 && (layers % 6u) == 0) ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
     info.imageType = dim == 1 ? VK_IMAGE_TYPE_1D : dim == 3 ? VK_IMAGE_TYPE_3D : VK_IMAGE_TYPE_2D;
     info.format=format;
     info.extent={width, dim == 1 ? 1u : height, dim == 3 ? depth : 1u};
@@ -260,7 +261,7 @@ bool PGAndroidGpuResources::createTexture(const uint32_t *p, uint32_t n) {
     resource.width=width; resource.height=height; resource.depth=depth;
     resource.mipLevels=mipLevels; resource.layers=layers; resource.dimension=dim;
     resource.bind=bind; resource.format=format;
-    resource.bcFormat=bcFormat; resource.decodeBC=decodeBC;
+    resource.bcFormat=bcFormat; resource.decodeBC=decodeBC; resource.sourceFormat=dxgi;
     if (vkCreateImage(device_, &info, nullptr, &resource.image) != VK_SUCCESS) return false;
     VkMemoryRequirements requirements{};
     vkGetImageMemoryRequirements(device_, resource.image, &requirements);
@@ -498,7 +499,96 @@ bool PGAndroidGpuResources::uploadTexture(const uint32_t *p, uint32_t n) {
     return ok;
 }
 
+
+bool PGAndroidGpuResources::createTextureView(const uint32_t *p, uint32_t n, bool unorderedAccess) {
+    // Original iOS createView packet: id, isBuffer, resourceId, DXGI view format,
+    // D3D view dimension, baseMip, mipCount, firstSlice, (SRV sliceCount | UAV flags).
+    if (!p || n < 9 || p[0] == 0 || p[1] != 0) return false;
+    const uint32_t id=p[0], resourceId=p[2], viewFormat=p[3], dimension=p[4];
+    const uint32_t baseMip=p[5], requestedMips=p[6], firstLayer=p[7], finalWord=p[8];
+    if (views_.count(id) || buffers_.count(id) || textures_.count(id)) return false;
+    auto found=textures_.find(resourceId);
+    if (found == textures_.end()) return false;
+    const TextureResource &texture=found->second;
+    if (unorderedAccess && !(texture.bind & kBindUnorderedAccess)) return false;
+    if (!unorderedAccess && !(texture.bind & kBindShaderResource)) return false;
+    if (baseMip >= texture.mipLevels) return false;
+    const uint32_t mipCount=(requestedMips == 0 || requestedMips == 0xffffffffu)
+        ? texture.mipLevels-baseMip : std::min(requestedMips, texture.mipLevels-baseMip);
+    if (!mipCount) return false;
+
+    VkImageViewType type=VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+    uint32_t baseLayer=firstLayer, layerCount=1;
+    switch (dimension) {
+        case 0: // D1
+            if (texture.dimension != 1) return false;
+            type=texture.layers > 1 ? VK_IMAGE_VIEW_TYPE_1D_ARRAY : VK_IMAGE_VIEW_TYPE_1D;
+            layerCount=texture.layers > 1 ? texture.layers-firstLayer : 1;
+            break;
+        case 1: // D2
+            if (texture.dimension != 2 || texture.layers != 1) return false;
+            type=VK_IMAGE_VIEW_TYPE_2D;
+            break;
+        case 2: // D2Array
+            if (texture.dimension != 2) return false;
+            type=VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+            layerCount=finalWord ? std::min(finalWord, texture.layers-firstLayer) : texture.layers-firstLayer;
+            break;
+        case 3: // D3
+            if (texture.dimension != 3) return false;
+            type=VK_IMAGE_VIEW_TYPE_3D;
+            baseLayer=0;
+            break;
+        case 4: // Cube
+            if (texture.dimension != 2 || texture.layers < 6 || (texture.layers % 6u)) return false;
+            type=VK_IMAGE_VIEW_TYPE_CUBE;
+            layerCount=6;
+            break;
+        case 5: // CubeArray; SRV count is in cubes, UAV has no explicit count
+            if (texture.dimension != 2 || texture.layers < 6 || (texture.layers % 6u)) return false;
+            type=VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
+            layerCount=finalWord ? finalWord*6u : texture.layers-firstLayer;
+            break;
+        default:
+            return false;
+    }
+    if (baseLayer >= texture.layers && texture.dimension != 3) return false;
+    if (texture.dimension != 3 && (layerCount == 0 || layerCount > texture.layers-baseLayer)) return false;
+    if ((type == VK_IMAGE_VIEW_TYPE_CUBE || type == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY) &&
+        ((baseLayer % 6u) != 0 || (layerCount % 6u) != 0)) return false;
+
+    // The current image allocation is not MUTABLE_FORMAT. Only the original
+    // resource format (or zero, meaning inherit) is legal for this first view path.
+    if (viewFormat != 0 && viewFormat != texture.sourceFormat) return false;
+    VkImageViewCreateInfo info{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+    info.image=texture.image;
+    info.viewType=type;
+    info.format=texture.format;
+    info.subresourceRange.aspectMask=isDepthVkFormat(texture.format)
+        ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+    if (texture.format == VK_FORMAT_D24_UNORM_S8_UINT ||
+        texture.format == VK_FORMAT_D32_SFLOAT_S8_UINT)
+        info.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+    info.subresourceRange.baseMipLevel=baseMip;
+    info.subresourceRange.levelCount=mipCount;
+    info.subresourceRange.baseArrayLayer=baseLayer;
+    info.subresourceRange.layerCount=texture.dimension == 3 ? 1u : layerCount;
+    ViewResource view{};
+    view.resourceId=resourceId;
+    view.unorderedAccess=unorderedAccess;
+    if (vkCreateImageView(device_, &info, nullptr, &view.view) != VK_SUCCESS) return false;
+    views_.emplace(id, view);
+    return true;
+}
+
 bool PGAndroidGpuResources::destroyObject(uint32_t id) {
+    const auto viewIt = views_.find(id);
+    if (viewIt != views_.end()) {
+        if (vkDeviceWaitIdle(device_) != VK_SUCCESS) return false;
+        if (viewIt->second.view) vkDestroyImageView(device_, viewIt->second.view, nullptr);
+        views_.erase(viewIt);
+        return true;
+    }
     const auto bufferIt = buffers_.find(id);
     const auto textureIt = textures_.find(id);
     if (bufferIt == buffers_.end() && textureIt == textures_.end()) return false;
@@ -522,6 +612,8 @@ bool PGAndroidGpuResources::destroyObject(uint32_t id) {
 }
 
 void PGAndroidGpuResources::reset() {
+    for (auto &entry : views_) if (entry.second.view) vkDestroyImageView(device_, entry.second.view, nullptr);
+    views_.clear();
     for (auto &entry : buffers_) {
         auto &resource = entry.second;
         if (resource.mapped) vkUnmapMemory(device_, resource.memory);
