@@ -82,7 +82,7 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         FrameLayout root = new FrameLayout(this);
         root.setBackground(new GradientDrawable(
             GradientDrawable.Orientation.TL_BR,
-            new int[]{Color.rgb(10, 18, 32), Color.rgb(5, 9, 17), Color.rgb(13, 19, 31)}
+            new int[]{0xff182b48, 0xff080d1a, 0xff090d18, 0xff24172a}
         ));
 
         SurfaceView surface = new SurfaceView(this);
@@ -119,13 +119,13 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         icon.setTextSize(27);
         icon.setTypeface(Typeface.DEFAULT_BOLD);
         icon.setGravity(Gravity.CENTER);
-        icon.setBackground(round(Color.rgb(27, 39, 58), dp(14), Color.rgb(78, 94, 121)));
+        icon.setBackground(PortTheme.glass(14, getResources().getDisplayMetrics().density));
         header.addView(icon, new LinearLayout.LayoutParams(dp(54), dp(54)));
         LinearLayout titles = new LinearLayout(this);
         titles.setOrientation(LinearLayout.VERTICAL);
         titles.setPadding(dp(13), 0, 0, 0);
         TextView title = text("GTA V Port", 27, Color.WHITE, true);
-        TextView subtitle = text("Fan project · plays your own game files", 12, 0xffaab5c7, false);
+        TextView subtitle = text("Fan project · plays your own game files", 12, PortTheme.SECONDARY, false);
         titles.addView(title);
         titles.addView(subtitle);
         header.addView(titles, new LinearLayout.LayoutParams(0,
@@ -137,11 +137,11 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         filesCard.setPadding(dp(15), dp(13), dp(15), dp(13));
         filesCard.setClickable(true);
         filesCard.setFocusable(true);
-        filesCard.addView(text("GAME FILES", 11, 0xffaab5c7, true));
+        filesCard.addView(text("GAME FILES", 11, PortTheme.SECONDARY, true));
         filesDetail = text("", 14, Color.WHITE, false);
         filesDetail.setPadding(0, dp(5), 0, 0);
         filesCard.addView(filesDetail);
-        filesCard.addView(text("Choose the folder containing your own GTA V files", 11, 0xff9aa8bb, false));
+        filesCard.addView(text("Choose the folder containing your own GTA V files", 11, PortTheme.TERTIARY, false));
         filesCard.setOnClickListener(v -> chooseGameFolder());
         LinearLayout.LayoutParams fileParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -149,7 +149,7 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         left.addView(filesCard, fileParams);
         refreshFolderLabel();
 
-        left.addView(text("START MODE", 12, 0xffaab5c7, true));
+        left.addView(text("START MODE", 12, PortTheme.SECONDARY, true));
         LinearLayout modes = new LinearLayout(this);
         modes.setOrientation(LinearLayout.HORIZONTAL);
         storyButton = modeButton("Story mode");
@@ -161,11 +161,11 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         left.addView(modes);
         storyButton.setOnClickListener(v -> selectMode(1));
         sandboxButton.setOnClickListener(v -> selectMode(2));
-        modeDetail = text("", 12, 0xffaab5c7, false);
+        modeDetail = text("", 12, PortTheme.SECONDARY, false);
         modeDetail.setPadding(dp(2), dp(7), dp(2), dp(9));
         left.addView(modeDetail);
 
-        mapLabel = text("MAP", 11, 0xffaab5c7, true);
+        mapLabel = text("MAP", 11, PortTheme.SECONDARY, true);
         left.addView(mapLabel);
         mapRow = new LinearLayout(this);
         mapRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -216,12 +216,12 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
             LinearLayout.LayoutParams.MATCH_PARENT, 0, 1);
         logParams.topMargin = dp(14);
         right.addView(logCard, logParams);
-        logCard.addView(text("PORT STATUS", 11, 0xffaab5c7, true));
+        logCard.addView(text("PORT STATUS", 11, PortTheme.SECONDARY, true));
         runtimeStatus = text("", 13, 0xffe3e9f2, false);
         runtimeStatus.setPadding(0, dp(12), 0, 0);
         runtimeStatus.setGravity(Gravity.TOP);
         logCard.addView(runtimeStatus);
-        status = text("Android foundation · arm64 · Vulkan", 11, 0xff9aa8bb, false);
+        status = text("Android foundation · arm64 · Vulkan", 11, PortTheme.TERTIARY, false);
         status.setPadding(0, dp(12), 0, 0);
         right.addView(status);
 
@@ -327,10 +327,8 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
 
     private void refreshMode() {
         if (storyButton == null || sandboxButton == null) return;
-        storyButton.setBackground(round(selectedMode == 1 ? 0xff344a68 : 0xff172235, dp(12),
-            selectedMode == 1 ? 0xff86a7d8 : 0xff3a4a62));
-        sandboxButton.setBackground(round(selectedMode == 2 ? 0xff344a68 : 0xff172235, dp(12),
-            selectedMode == 2 ? 0xff86a7d8 : 0xff3a4a62));
+        storyButton.setBackground(selectedMode == 1 ? PortTheme.selected(12, getResources().getDisplayMetrics().density) : PortTheme.glassButton(12, getResources().getDisplayMetrics().density));
+        sandboxButton.setBackground(selectedMode == 2 ? PortTheme.selected(12, getResources().getDisplayMetrics().density) : PortTheme.glassButton(12, getResources().getDisplayMetrics().density));
         modeDetail.setText(selectedMode == 1
             ? "The campaign with missions. Continues your latest save, or starts from the Prologue."
             : "Free roam anywhere on the map with every weapon. No missions.");
@@ -348,10 +346,8 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
 
     private void refreshMap() {
         if (gtaMapButton == null || testMapButton == null) return;
-        gtaMapButton.setBackground(round(selectedMap == 0 ? 0xff344a68 : 0xff172235, dp(18),
-            selectedMap == 0 ? 0xff86a7d8 : 0xff3a4a62));
-        testMapButton.setBackground(round(selectedMap == 1 ? 0xff344a68 : 0xff172235, dp(18),
-            selectedMap == 1 ? 0xff86a7d8 : 0xff3a4a62));
+        gtaMapButton.setBackground(selectedMap == 0 ? PortTheme.selected(18, getResources().getDisplayMetrics().density) : PortTheme.glassButton(18, getResources().getDisplayMetrics().density));
+        testMapButton.setBackground(selectedMap == 1 ? PortTheme.selected(18, getResources().getDisplayMetrics().density) : PortTheme.glassButton(18, getResources().getDisplayMetrics().density));
     }
 
     private void refreshRuntimeStatus() {
@@ -382,13 +378,13 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         button.setTextSize(11);
         button.setTextColor(0xffdce4f0);
         button.setAllCaps(false);
-        button.setBackground(round(0xff172235, dp(18), 0xff3a4a62));
+        button.setBackground(PortTheme.glassButton(18, getResources().getDisplayMetrics().density));
         return button;
     }
 
     private LinearLayout card() {
         LinearLayout panel = new LinearLayout(this);
-        panel.setBackground(round(0xc91a2639, dp(16), 0x884b5d79));
+        panel.setBackground(PortTheme.glass(16, getResources().getDisplayMetrics().density));
         return panel;
     }
 
