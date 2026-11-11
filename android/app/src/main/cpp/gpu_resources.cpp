@@ -154,7 +154,7 @@ uint32_t PGAndroidGpuResources::findMemoryType(
 bool PGAndroidGpuResources::createBuffer(const uint32_t *p, uint32_t n) {
     if (!p || n < 5) return false;
     const uint32_t id = p[0], bytes = p[1], bind = p[2];
-    if (!id || !bytes || bytes > kMaxBufferBytes || buffers_.count(id) || textures_.count(id) || views_.count(id)) return false;
+    if (!id || !bytes || bytes > kMaxBufferBytes || buffers_.count(id) || textures_.count(id) || views_.count(id) || samplers_.count(id)) return false;
 
     VkBufferUsageFlags usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
                                VK_BUFFER_USAGE_TRANSFER_DST_BIT;
@@ -167,6 +167,7 @@ bool PGAndroidGpuResources::createBuffer(const uint32_t *p, uint32_t n) {
     BufferResource resource{};
     resource.size = bytes;
     resource.bind = bind;
+    resource.stride = p[4];
     VkBufferCreateInfo info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     info.size = bytes;
     info.usage = usage;
@@ -208,7 +209,7 @@ bool PGAndroidGpuResources::createTexture(const uint32_t *p, uint32_t n) {
     const uint32_t mipLevels=p[5], layers=p[6], dxgi=p[7], bind=p[8], samples=p[9];
     if (!id || !width || !height || !depth || !mipLevels || !layers ||
         dim < 1 || dim > 3 || samples == 0 || (samples & (samples-1)) ||
-        textures_.count(id) || buffers_.count(id) || views_.count(id)) return false;
+        textures_.count(id) || buffers_.count(id) || views_.count(id) || samplers_.count(id)) return false;
     const uint32_t maxDimension = std::max(width, std::max(height, depth));
     uint32_t maxMips=1;
     for (uint32_t d=maxDimension; d>1; d>>=1) ++maxMips;
@@ -562,10 +563,30 @@ bool PGAndroidGpuResources::createSamplerState(const uint32_t *p, uint32_t n) {
 bool PGAndroidGpuResources::createTextureView(const uint32_t *p, uint32_t n, bool unorderedAccess) {
     // Original iOS createView packet: id, isBuffer, resourceId, DXGI view format,
     // D3D view dimension, baseMip, mipCount, firstSlice, (SRV sliceCount | UAV flags).
-    if (!p || n < 9 || p[0] == 0 || p[1] != 0) return false;
+    if (!p || n < 9 || p[0] == 0 || p[1] > 1) return false;
     const uint32_t id=p[0], resourceId=p[2], viewFormat=p[3], dimension=p[4];
     const uint32_t baseMip=p[5], requestedMips=p[6], firstLayer=p[7], finalWord=p[8];
-    if (views_.count(id) || buffers_.count(id) || textures_.count(id)) return false;
+    if (views_.count(id) || buffers_.count(id) || textures_.count(id) || samplers_.count(id)) return false;
+
+    // D3D buffer SRV/UAV views share the original buffer allocation. The first
+    // element and structured stride are retained as a Vulkan storage-buffer range.
+    if (p[1] == 1) {
+        const auto buffer=buffers_.find(resourceId);
+        if (buffer == buffers_.end()) return false;
+        const uint32_t requiredBind=unorderedAccess ? kBindUnorderedAccess : kBindShaderResource;
+        if (!(buffer->second.bind & requiredBind)) return false;
+        const uint64_t stride=buffer->second.stride ? buffer->second.stride : 4u;
+        const uint64_t offset=static_cast<uint64_t>(baseMip)*stride;
+        if (offset >= buffer->second.size || offset > UINT32_MAX) return false;
+        ViewResource view{};
+        view.resourceId=resourceId;
+        view.firstElement=baseMip;
+        view.unorderedAccess=unorderedAccess;
+        view.bufferView=true;
+        views_.emplace(id, view);
+        return true;
+    }
+
     auto found=textures_.find(resourceId);
     if (found == textures_.end()) return false;
     const TextureResource &texture=found->second;
@@ -656,6 +677,25 @@ bool PGAndroidGpuResources::getBufferDescriptor(uint32_t id, VkDeviceSize offset
     out.buffer = it->second.buffer;
     out.offset = offset;
     out.range = resolvedRange;
+    return out.buffer != VK_NULL_HANDLE;
+}
+
+bool PGAndroidGpuResources::getBufferViewDescriptor(uint32_t id,
+    VkDescriptorBufferInfo &out, bool unorderedAccess) const {
+    const auto view=views_.find(id);
+    if (view == views_.end() || !view->second.bufferView ||
+        view->second.unorderedAccess != unorderedAccess) return false;
+    const auto buffer=buffers_.find(view->second.resourceId);
+    if (buffer == buffers_.end()) return false;
+    const uint32_t requiredBind=unorderedAccess ? kBindUnorderedAccess : kBindShaderResource;
+    if (!(buffer->second.bind & requiredBind)) return false;
+    const VkDeviceSize stride=buffer->second.stride ? buffer->second.stride : 4u;
+    const VkDeviceSize offset=static_cast<VkDeviceSize>(view->second.firstElement)*stride;
+    if (offset >= buffer->second.size) return false;
+    out={};
+    out.buffer=buffer->second.buffer;
+    out.offset=offset;
+    out.range=buffer->second.size-offset;
     return out.buffer != VK_NULL_HANDLE;
 }
 
