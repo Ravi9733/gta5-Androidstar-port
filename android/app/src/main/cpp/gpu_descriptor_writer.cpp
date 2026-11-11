@@ -2,6 +2,47 @@
 
 #include <unordered_set>
 
+#include <algorithm>
+#include <unordered_map>
+
+bool PGAndroidDescriptorWriter::createSetLayout(
+    VkDevice device, const PGAndroidDescriptorBinding *bindings, uint32_t count,
+    VkDescriptorSetLayout &out) const {
+    if (device == VK_NULL_HANDLE || (!bindings && count) || out != VK_NULL_HANDLE) return false;
+    std::unordered_map<uint32_t, VkDescriptorSetLayoutBinding> byBinding;
+    std::unordered_map<uint32_t, uint32_t> maxArrayElement;
+    for (uint32_t i = 0; i < count; ++i) {
+        const auto &source = bindings[i];
+        if (source.type == VK_DESCRIPTOR_TYPE_MAX_ENUM || source.stageFlags == 0) return false;
+        auto it = byBinding.find(source.binding);
+        if (it == byBinding.end()) {
+            VkDescriptorSetLayoutBinding entry{};
+            entry.binding = source.binding;
+            entry.descriptorType = source.type;
+            entry.descriptorCount = 1;
+            entry.stageFlags = source.stageFlags;
+            byBinding.emplace(source.binding, entry);
+            maxArrayElement[source.binding] = source.arrayElement;
+        } else {
+            if (it->second.descriptorType != source.type) return false;
+            it->second.stageFlags |= source.stageFlags;
+            maxArrayElement[source.binding] = std::max(maxArrayElement[source.binding], source.arrayElement);
+        }
+    }
+    std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
+    layoutBindings.reserve(byBinding.size());
+    for (auto &entry : byBinding) {
+        entry.second.descriptorCount = maxArrayElement[entry.first] + 1;
+        layoutBindings.push_back(entry.second);
+    }
+    std::sort(layoutBindings.begin(), layoutBindings.end(),
+              [](const auto &a, const auto &b) { return a.binding < b.binding; });
+    VkDescriptorSetLayoutCreateInfo info{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+    info.bindingCount = static_cast<uint32_t>(layoutBindings.size());
+    info.pBindings = layoutBindings.data();
+    return vkCreateDescriptorSetLayout(device, &info, nullptr, &out) == VK_SUCCESS;
+}
+
 bool PGAndroidDescriptorWriter::update(
     VkDevice device, VkDescriptorSet set, const PGAndroidGpuResources &resources,
     const PGAndroidDescriptorBinding *bindings, uint32_t count) const {
