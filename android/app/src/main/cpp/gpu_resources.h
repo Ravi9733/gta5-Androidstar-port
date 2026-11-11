@@ -20,6 +20,8 @@ public:
                              VkDescriptorBufferInfo &out, uint32_t requiredBind) const;
     bool getImageDescriptor(uint32_t viewId, VkDescriptorImageInfo &out,
                             bool unorderedAccess) const;
+    bool getBufferViewDescriptor(uint32_t viewId, VkDescriptorBufferInfo &out,
+                                 bool unorderedAccess) const;
     bool getSamplerDescriptor(uint32_t samplerId, VkDescriptorImageInfo &out) const;
     bool destroyObject(uint32_t objectId);
     void reset();
@@ -38,7 +40,9 @@ private:
     struct ViewResource {
         VkImageView view = VK_NULL_HANDLE;
         uint32_t resourceId = 0;
+        uint32_t firstElement = 0;
         bool unorderedAccess = false;
+        bool bufferView = false;
     };
     struct BufferResource {
         VkBuffer buffer = VK_NULL_HANDLE;
@@ -47,6 +51,7 @@ private:
         VkDeviceSize size = 0;
         VkMemoryPropertyFlags memoryFlags = 0;
         uint32_t bind = 0;
+        uint32_t stride = 0;
     };
     uint32_t findMemoryType(uint32_t bits, VkMemoryPropertyFlags required,
                             VkMemoryPropertyFlags preferred) const;
