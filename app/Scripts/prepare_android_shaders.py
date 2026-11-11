@@ -75,7 +75,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     manifest = build_manifest(args.shader_dir)
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(manifest, indent=2) + "\\n", encoding="utf-8")
+    args.output.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     print(f"Validated {manifest['shader_count']} WGSL shaders for the Android Vulkan pipeline.")
     print("Note: this inventory does not compile SPIR-V or implement Vulkan reflection.")
     return 0
