@@ -6,13 +6,23 @@
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
+#if !defined(__ANDROID__)
 #include <TargetConditionals.h>
+#else
+#define TARGET_OS_SIMULATOR 0
+#endif
 
 static struct w2c_env *mainHost;
 // The engine's threads run without a QoS class; under a steady multi-core load iOS may then put them on
 // efficiency cores or lower clocks (GTA-92: FPS halves after a minute while CPU time per frame grows
 // 2.4-2.9x at the same scene load). Since v1.4.3 every engine thread is user-initiated (Kevin, 2026-10-20);
 // PG_ENGINE_QOS=interactive raises them further, PG_ENGINE_QOS=off leaves them without a class as before.
+#if defined(__ANDROID__)
+// Android bionic has no Apple QoS classes. Preserve the default pthread
+// scheduling policy rather than calling unavailable Apple-only APIs.
+void pg_engine_thread_attributes(pthread_attr_t *attrs) { (void)attrs; }
+void pg_engine_thread_qos(const char *name) { (void)name; }
+#else
 void pg_engine_thread_attributes(pthread_attr_t *attrs) {
   static int qos = -1;
   if (qos < 0) {
@@ -40,6 +50,8 @@ void pg_engine_thread_qos(const char *name) {
   for (unsigned i = 0; i < sizeof utility / sizeof *utility; i++) if (strstr(name, utility[i])) qos = QOS_CLASS_UTILITY;
   if (qos != QOS_CLASS_USER_INITIATED) pthread_set_qos_class_self_np(qos, 0);
 }
+
+#endif
 struct EngineThread {struct w2c_env host;struct w2c_wasi__snapshot__preview1 wasi;u64 pthread,start,arg;wasm_rt_funcref_t *table;};
 static _Thread_local struct EngineThread *currentThread;
 // Function tables (GTA-192). Each engine thread is its own module instance with its own copy of the indirect function
@@ -168,7 +180,12 @@ static void nameEngineThread(struct EngineThread *thread) {
     if(n>=2&&!base[arg+24+n]){memcpy(name,base+arg+24,n);name[n]=0;}
   }
   if(!name[0])snprintf(name,sizeof name,"gta.engine.start%llu",(unsigned long long)thread->start);
-  pthread_setname_np(name);pg_engine_thread_qos(name);
+#if defined(__ANDROID__)
+  pthread_setname_np(pthread_self(), name);
+#else
+  pthread_setname_np(name);
+#endif
+  pg_engine_thread_qos(name);
   char line[96];snprintf(line,sizeof line,"Engine thread: %s.",name);pg_log(line);
 }
 static void *runThread(void *pointer) {
