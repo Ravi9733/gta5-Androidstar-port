@@ -3,6 +3,7 @@ package com.ravi.gta5port;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -49,6 +50,7 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
     private int selectedMode = 2;
     private int selectedMap = 0;
     private String selectedFolder = "";
+    private boolean folderLayoutFound;
     private int controllerButtons;
     private float controllerLeftX, controllerLeftY, controllerRightX, controllerRightY;
     private float controllerLeftTrigger, controllerRightTrigger;
@@ -270,7 +272,49 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         } catch (Exception ignored) {
             label = "Selected game folder";
         }
-        filesDetail.setText(label + "  ✓");
+        folderLayoutFound = scanForGameData(Uri.parse(selectedFolder));
+        filesDetail.setText(label + (folderLayoutFound
+            ? "  ✓  ·  x64 + common found"
+            : "  ·  selected, but x64/common not found"));
+    }
+
+    private boolean scanForGameData(Uri treeUri) {
+        try {
+            String rootId = DocumentsContract.getTreeDocumentId(treeUri);
+            java.util.HashMap<String, String> folders = listChildFolders(treeUri, rootId);
+            if (folders.containsKey("x64") && folders.containsKey("common")) return true;
+            String dataId = folders.get("data");
+            if (dataId == null) return false;
+            java.util.HashMap<String, String> dataFolders = listChildFolders(treeUri, dataId);
+            return dataFolders.containsKey("x64") && dataFolders.containsKey("common");
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private java.util.HashMap<String, String> listChildFolders(Uri treeUri, String documentId) {
+        java.util.HashMap<String, String> folders = new java.util.HashMap<>();
+        Uri children = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId);
+        String[] columns = {
+            DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+            DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+            DocumentsContract.Document.COLUMN_MIME_TYPE
+        };
+        try (Cursor cursor = getContentResolver().query(children, columns, null, null, null)) {
+            if (cursor == null) return folders;
+            int idColumn = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DOCUMENT_ID);
+            int nameColumn = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME);
+            int typeColumn = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_MIME_TYPE);
+            while (cursor.moveToNext()) {
+                if (idColumn < 0 || nameColumn < 0 || typeColumn < 0) continue;
+                String type = cursor.getString(typeColumn);
+                if (!DocumentsContract.Document.MIME_TYPE_DIR.equals(type)) continue;
+                String name = cursor.getString(nameColumn);
+                String id = cursor.getString(idColumn);
+                if (name != null && id != null) folders.put(name.toLowerCase(java.util.Locale.ROOT), id);
+            }
+        } catch (Exception ignored) {}
+        return folders;
     }
 
     private void selectMode(int mode) {
@@ -310,7 +354,7 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
 
     private void refreshRuntimeStatus() {
         if (runtimeStatus == null) return;
-        String folder = selectedFolder.isEmpty() ? "• Game files: not selected" : "• Game folder: permission saved";
+        String folder = selectedFolder.isEmpty() ? "• Game files: not selected" : (folderLayoutFound ? "• Game folder: x64 + common detected" : "• Game folder: saved; layout not verified");
         String vulkan = nativeReady ? "• Vulkan: device and swapchain initialized" : "• Vulkan: waiting for Android surface";
         runtimeStatus.setText(folder + "\n" + vulkan
             + "\n• WASM engine: not connected"
