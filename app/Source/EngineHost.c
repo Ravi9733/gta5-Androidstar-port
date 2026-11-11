@@ -58,19 +58,20 @@ static uint64_t pg_android_read_number(const char *path) {
   unsigned long long parsed = strtoull(value, &end, 10);
   return end == value ? 0 : (uint64_t)parsed;
 }
-static uint64_t pg_android_cgroup_headroom(void) {
+static bool pg_android_cgroup_headroom(uint64_t *headroom) {
   uint64_t limit = pg_android_read_number("/sys/fs/cgroup/memory.max");
   uint64_t used = pg_android_read_number("/sys/fs/cgroup/memory.current");
   if (!limit || limit >= (1ull << 60)) {
     limit = pg_android_read_number("/sys/fs/cgroup/memory/memory.limit_in_bytes");
     used = pg_android_read_number("/sys/fs/cgroup/memory/memory.usage_in_bytes");
   }
-  if (!limit || limit >= (1ull << 60)) return 0;
-  return limit > used ? limit - used : 0;
+  if (!limit || limit >= (1ull << 60)) return false;
+  *headroom = limit > used ? limit - used : 0;
+  return true;
 }
 static uint64_t pg_android_available_memory(void) {
-  uint64_t cgroup = pg_android_cgroup_headroom();
-  if (cgroup) return cgroup;
+  uint64_t cgroup = 0;
+  if (pg_android_cgroup_headroom(&cgroup)) return cgroup;
   FILE *file = fopen("/proc/meminfo", "r");
   if (file) {
     char line[256];
