@@ -56,8 +56,15 @@ jobs:
       - name: Test generated WABT Android diagnostics patch
         run: python3 app/Scripts/test_android_engine_pipeline.py
 
+      - name: Install Naga WGSL to SPIR-V compiler
+        run: |
+          rustup toolchain install stable --profile minimal
+          cargo +stable install naga-cli --locked
+
       - name: Test Android shader and GPU protocol preparation
         run: |
+          python3 app/Scripts/test_android_shader_compiler.py
+          python3 app/Scripts/test_android_shaders.py
           python3 app/Scripts/test_android_shaders.py
           python3 app/Scripts/test_android_gpu_protocol.py
           mkdir -p "$RUNNER_TEMP/pgandroid-gpu"
