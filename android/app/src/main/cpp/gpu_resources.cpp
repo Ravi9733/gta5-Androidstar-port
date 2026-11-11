@@ -216,7 +216,7 @@ bool PGAndroidGpuResources::createTexture(const uint32_t *p, uint32_t n) {
         (dim == 3 && layers != 1) || (samples > 1 && (mipLevels != 1 || dim != 2)))
         return false;
 
-    const VkFormat format=dxgiToVkFormat(dxgi);
+    VkFormat format=dxgiToVkFormat(dxgi);
     if (format == VK_FORMAT_UNDEFINED) return false;
     VkImageUsageFlags usage=VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     if (bind & kBindShaderResource) usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
