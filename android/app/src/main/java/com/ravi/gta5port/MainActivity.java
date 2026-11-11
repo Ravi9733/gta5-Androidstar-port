@@ -211,19 +211,6 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         exitParams.topMargin = dp(9);
         left.addView(exitButton, exitParams);
 
-        LinearLayout right = new LinearLayout(this);
-        right.setOrientation(LinearLayout.VERTICAL);
-        right.setPadding(dp(16), dp(8), 0, dp(8));
-        content.addView(right, portrait
-            ? new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 0f)
-            : new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 0.56f));
-        if (portrait) {
-            right.setVisibility(View.GONE);
-            right.removeView(actions);
-            left.addView(actions, 1, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(42)));
-        }
-
         LinearLayout actions = new LinearLayout(this);
         actions.setGravity(Gravity.RIGHT);
         Button settings = smallButton("Settings");
@@ -234,7 +221,20 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         LinearLayout.LayoutParams controlsParams = new LinearLayout.LayoutParams(dp(132), dp(40));
         controlsParams.leftMargin = dp(8);
         actions.addView(controls, controlsParams);
-        right.addView(actions);
+
+        LinearLayout right = new LinearLayout(this);
+        right.setOrientation(LinearLayout.VERTICAL);
+        right.setPadding(dp(16), dp(8), 0, dp(8));
+        content.addView(right, portrait
+            ? new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 0f)
+            : new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 0.56f));
+        if (portrait) {
+            right.setVisibility(View.GONE);
+            left.addView(actions, 1, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(42)));
+        } else {
+            right.addView(actions);
+        }
 
         LinearLayout logCard = card();
         logCard.setOrientation(LinearLayout.VERTICAL);
