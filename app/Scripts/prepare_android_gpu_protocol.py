@@ -31,7 +31,7 @@ def parse_protocol(renderer_source: str, internal_header: str) -> dict:
     if ops[-1]["value"] != 47:
         raise SystemExit(f"Expected original protocol to end at opcode 47, got {ops[-1]['value']}.")
 
-    bind_decl = re.search(r"static\s+const\s+uint32_t\s+(.*?);", renderer_source, re.S)
+    bind_decl = re.search(r"static\s+const\s+uint32_t\s+(.*?);", renderer_source[match.end():], re.S)
     bindings = {name: int(value, 0) for name, value in BIND_ENTRY.findall(bind_decl.group(1))} if bind_decl else {}
     if not bindings:
         raise SystemExit("Could not extract D3D11 resource binding flags.")
