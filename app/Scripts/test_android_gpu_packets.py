@@ -6,6 +6,7 @@ import tempfile
 
 HARNESS = r"""
 #include "gpu_command_packets.h"
+#include "gpu_object_registry.h"
 #include <cassert>
 #include <cstdint>
 int main() {
@@ -43,6 +44,29 @@ int main() {
     assert(layout.elements[0] == 10 && layout.elements[6] == 16);
     const uint32_t shortLayout[] = {77, 1, 10, 11};
     assert(!PGAndroidDecodeCreateLayoutPacket(shortLayout, 4, layout));
+
+    PGAndroidGpuObjectRegistry registry;
+    const uint32_t shaderRecord[] = {101, 2, 0x11u, 0x22u, 1, 7, 8, 9, 10};
+    assert(registry.createShader(shaderRecord, 9));
+    const auto *storedShader = registry.shader(101);
+    assert(storedShader && storedShader->stage == 2);
+    assert(storedShader->hashLow == 0x11u && storedShader->hashHigh == 0x22u);
+    assert(storedShader->inputSignatures.size() == 4 && storedShader->inputSignatures[3] == 10);
+    // Registry owns a copy; mutating the packet must not mutate the stored record.
+    uint32_t transientShader[] = {102, 0, 1, 2, 1, 3, 4, 5, 6};
+    assert(registry.createShader(transientShader, 9));
+    transientShader[5] = 999;
+    assert(registry.shader(102)->inputSignatures[0] == 3);
+
+    const uint32_t layoutRecord[] = {201, 1, 10, 11, 12, 13, 14, 15, 16};
+    assert(registry.createLayout(layoutRecord, 9));
+    assert(registry.layout(201) && registry.layout(201)->elements.size() == 7);
+    assert(registry.layout(201)->elements[6] == 16);
+    assert(!registry.createLayout(layoutRecord, 9)); // Duplicate IDs are rejected.
+    assert(!registry.createShader(layoutRecord, 9)); // IDs cannot alias object types.
+    assert(registry.destroy(101) && !registry.shader(101));
+    registry.clear();
+    assert(!registry.layout(201));
 
     PGAndroidDispatchPacket dispatch{};
     const uint32_t groups[] = {8, 4, 2};
