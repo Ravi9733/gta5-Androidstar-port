@@ -584,9 +584,12 @@ bool PGAndroidGpuResources::createTextureView(const uint32_t *p, uint32_t n, boo
 
 bool PGAndroidGpuResources::getBufferDescriptor(uint32_t id, VkDeviceSize offset,
                                                  VkDeviceSize range,
-                                                 VkDescriptorBufferInfo &out) const {
+                                                 VkDescriptorBufferInfo &out, uint32_t requiredBind) const {
     const auto it = buffers_.find(id);
-    if (it == buffers_.end() || offset >= it->second.size) return false;
+    if (it == buffers_.end() || offset >= it->second.size || !requiredBind ||
+        (requiredBind & ~(kBindConstant | kBindShaderResource | kBindUnorderedAccess))) return false;
+    const uint32_t bind = bufferBindFlags_.count(id) ? bufferBindFlags_.at(id) : 0u;
+    if ((bind & requiredBind) != requiredBind) return false;
     const VkDeviceSize available = it->second.size - offset;
     const VkDeviceSize resolvedRange = range == VK_WHOLE_SIZE ? available : range;
     if (!resolvedRange || resolvedRange > available) return false;
@@ -598,14 +601,17 @@ bool PGAndroidGpuResources::getBufferDescriptor(uint32_t id, VkDeviceSize offset
 }
 
 bool PGAndroidGpuResources::getImageDescriptor(uint32_t id,
-                                                VkDescriptorImageInfo &out) const {
+                                                VkDescriptorImageInfo &out, bool unorderedAccess) const {
     const auto it = views_.find(id);
     if (it == views_.end() || !it->second.view) return false;
     const auto texture = textures_.find(it->second.resourceId);
     if (texture == textures_.end()) return false;
     out = {};
     out.imageView = it->second.view;
-    if (texture->second.layout == VK_IMAGE_LAYOUT_UNDEFINED) return false;
+    if (it->second.unorderedAccess != unorderedAccess ||
+        (unorderedAccess && !(texture->second.bind & kBindUnorderedAccess)) ||
+        (!unorderedAccess && !(texture->second.bind & kBindShaderResource)) ||
+        texture->second.layout == VK_IMAGE_LAYOUT_UNDEFINED) return false;
     // Descriptor layout must describe the image's actual current layout. A later
     // command barrier may transition it before binding/use.
     out.imageLayout = texture->second.layout;
