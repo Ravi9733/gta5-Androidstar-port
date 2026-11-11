@@ -11,11 +11,17 @@ public:
     PGAndroidGpuResources &operator=(const PGAndroidGpuResources &) = delete;
 
     bool createBuffer(const uint32_t *words, uint32_t wordCount);
+    bool createTexture(const uint32_t *words, uint32_t wordCount);
     bool uploadBuffer(const uint32_t *words, uint32_t wordCount);
     bool destroyObject(uint32_t objectId);
     void reset();
 
 private:
+    struct TextureResource {
+        VkImage image = VK_NULL_HANDLE;
+        VkImageView view = VK_NULL_HANDLE;
+        VkDeviceMemory memory = VK_NULL_HANDLE;
+    };
     struct BufferResource {
         VkBuffer buffer = VK_NULL_HANDLE;
         VkDeviceMemory memory = VK_NULL_HANDLE;
@@ -28,4 +34,5 @@ private:
     VkPhysicalDevice physical_;
     VkDevice device_;
     std::unordered_map<uint32_t, BufferResource> buffers_;
+    std::unordered_map<uint32_t, TextureResource> textures_;
 };
