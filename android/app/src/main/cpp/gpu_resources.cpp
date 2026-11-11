@@ -5,7 +5,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <memory>
-#include <limits>
+#include <limits>\n#include <cmath>
 #include <vector>
 
 namespace {
@@ -500,6 +500,65 @@ bool PGAndroidGpuResources::uploadTexture(const uint32_t *p, uint32_t n) {
     return ok;
 }
 
+
+bool PGAndroidGpuResources::createSamplerState(const uint32_t *p, uint32_t n) {
+    // Original iOS CREATE_STATE packet: id, state kind, then 13 sampler words.
+    // State kind 3 is sampler; words are filter, U/V/W address, reserved,
+    // max anisotropy, comparison function, RGBA border, min LOD, max LOD.
+    if (!p || n < 15 || !p[0] || p[1] != 3 || samplers_.count(p[0]) ||
+        buffers_.count(p[0]) || textures_.count(p[0]) || views_.count(p[0])) return false;
+    const uint32_t *w = p + 2;
+    const uint32_t filter = w[0];
+    const bool anisotropic = (filter & 0x7fu) == 0x55u;
+    auto addressMode = [](uint32_t mode) {
+        switch (mode) {
+            case 2: return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+            case 3: case 4: case 5: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            default: return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        }
+    };
+    auto compareOp = [](uint32_t value) {
+        switch (value) {
+            case 1: return VK_COMPARE_OP_NEVER;
+            case 2: return VK_COMPARE_OP_LESS;
+            case 3: return VK_COMPARE_OP_EQUAL;
+            case 4: return VK_COMPARE_OP_LESS_OR_EQUAL;
+            case 5: return VK_COMPARE_OP_GREATER;
+            case 6: return VK_COMPARE_OP_NOT_EQUAL;
+            case 7: return VK_COMPARE_OP_GREATER_OR_EQUAL;
+            case 8: return VK_COMPARE_OP_ALWAYS;
+            default: return VK_COMPARE_OP_ALWAYS;
+        }
+    };
+    float minLod = 0.0f, maxLod = 0.0f;
+    std::memcpy(&minLod, &w[11], sizeof(float));
+    std::memcpy(&maxLod, &w[12], sizeof(float));
+    if (!std::isfinite(minLod) || !std::isfinite(maxLod)) return false;
+    minLod = std::clamp(minLod, 0.0f, 1000.0f);
+    maxLod = std::clamp(maxLod, minLod, 1000.0f);
+    VkSamplerCreateInfo info{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+    info.magFilter = ((filter >> 2) & 1u) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
+    info.minFilter = ((filter >> 4) & 1u) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
+    info.mipmapMode = (filter & 1u) ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    info.addressModeU = addressMode(w[1]);
+    info.addressModeV = addressMode(w[2]);
+    info.addressModeW = addressMode(w[3]);
+    info.mipLodBias = 0.0f;
+    info.anisotropyEnable = VK_FALSE; // Device feature is not enabled by this host yet.
+    info.maxAnisotropy = 1.0f;
+    info.compareEnable = (filter & 0x80u) ? VK_TRUE : VK_FALSE;
+    info.compareOp = compareOp(w[6]);
+    info.minLod = minLod;
+    info.maxLod = maxLod;
+    // Vulkan's built-in border colours cannot represent arbitrary D3D border RGBA;
+    // map D3D border addressing to clamp-to-edge until custom-border support is enabled.
+    info.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+    info.unnormalizedCoordinates = VK_FALSE;
+    VkSampler sampler = VK_NULL_HANDLE;
+    if (vkCreateSampler(device_, &info, nullptr, &sampler) != VK_SUCCESS) return false;
+    samplers_.emplace(p[0], sampler);
+    return true;
+}
 
 bool PGAndroidGpuResources::createTextureView(const uint32_t *p, uint32_t n, bool unorderedAccess) {
     // Original iOS createView packet: id, isBuffer, resourceId, DXGI view format,
