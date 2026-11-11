@@ -14,6 +14,7 @@ public:
     bool createTexture(const uint32_t *words, uint32_t wordCount);
     bool uploadBuffer(const uint32_t *words, uint32_t wordCount);
     bool uploadTexture(const uint32_t *words, uint32_t wordCount);
+    bool createTextureView(const uint32_t *words, uint32_t wordCount, bool unorderedAccess);
     bool destroyObject(uint32_t objectId);
     void reset();
 
@@ -23,10 +24,15 @@ private:
         VkImageView view = VK_NULL_HANDLE;
         VkDeviceMemory memory = VK_NULL_HANDLE;
         uint32_t width = 0, height = 0, depth = 0, mipLevels = 0, layers = 0;
-        uint32_t dimension = 0, bind = 0, bcFormat = 0;
+        uint32_t dimension = 0, bind = 0, bcFormat = 0, sourceFormat = 0;
         bool decodeBC = false;
         VkFormat format = VK_FORMAT_UNDEFINED;
         VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    };
+    struct ViewResource {
+        VkImageView view = VK_NULL_HANDLE;
+        uint32_t resourceId = 0;
+        bool unorderedAccess = false;
     };
     struct BufferResource {
         VkBuffer buffer = VK_NULL_HANDLE;
@@ -44,4 +50,5 @@ private:
     bool textureCompressionBC_;
     std::unordered_map<uint32_t, BufferResource> buffers_;
     std::unordered_map<uint32_t, TextureResource> textures_;
+    std::unordered_map<uint32_t, ViewResource> views_;
 };
