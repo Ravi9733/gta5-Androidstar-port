@@ -60,6 +60,19 @@ jobs:
         run: |
           python3 app/Scripts/test_android_shaders.py
           python3 app/Scripts/test_android_gpu_protocol.py
+          mkdir -p "$RUNNER_TEMP/pgandroid-gpu"
+          python3 app/Scripts/prepare_android_gpu_protocol.py \
+            --renderer app/Source/MetalRenderer/MRRenderer.mm \
+            --internal-header app/Source/MetalRenderer/MRInternal.h \
+            --json "$RUNNER_TEMP/pgandroid-gpu/protocol.json" \
+            --header "$RUNNER_TEMP/pgandroid-gpu/PGAndroidGpuProtocol.h"
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            -I android/app/src/main/cpp \
+            -I "$RUNNER_TEMP/pgandroid-gpu" \
+            android/app/src/main/cpp/gpu_command_ring.cpp \
+            android/app/src/main/cpp/tests/gpu_command_ring_test.cpp \
+            -o "$RUNNER_TEMP/pgandroid-gpu/ring-test"
+          "$RUNNER_TEMP/pgandroid-gpu/ring-test"
 
       - name: Build arm64 debug APK
         run: gradle -p android --no-daemon assembleDebug
