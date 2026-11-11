@@ -11,7 +11,7 @@ bool PGAndroidRecordDraw(VkCommandBuffer commandBuffer,
     uint32_t instanceCount, uint32_t firstVertexOrIndex, int32_t vertexOffset,
     uint32_t firstInstance) {
     if (!commandBuffer || !pipeline.handle || pipeline.compute ||
-        !layout.pipelineLayout || !layout.descriptorSet ||
+        !layout.pipelineLayout ||
         (!vertexBufferIds && vertexBufferCount) || (!vertexOffsets && vertexBufferCount) ||
         vertexBufferCount == 0 || vertexBufferCount > 16 || instanceCount == 0) return false;
 
@@ -40,7 +40,7 @@ bool PGAndroidRecordDraw(VkCommandBuffer commandBuffer,
 
     vkCmdBindPipeline(commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,pipeline.handle);
     vkCmdBindDescriptorSets(commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
-        layout.pipelineLayout,0,1,&layout.descriptorSet,0,nullptr);
+        layout.pipelineLayout,0,3,layout.descriptorSets.data(),0,nullptr);
     vkCmdBindVertexBuffers(commandBuffer,0,vertexBufferCount,buffers.data(),vertexOffsets);
     if (indexBuffer) {
         vkCmdBindIndexBuffer(commandBuffer,indexBuffer,indexOffset,indexType);
@@ -56,11 +56,30 @@ bool PGAndroidRecordDispatch(VkCommandBuffer commandBuffer,
     const PGAndroidPipeline &pipeline, const PGAndroidPipelineLayout &layout,
     uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) {
     if (!commandBuffer || !pipeline.handle || !pipeline.compute ||
-        !layout.pipelineLayout || !layout.descriptorSet ||
+        !layout.pipelineLayout ||
         !groupCountX || !groupCountY || !groupCountZ) return false;
     vkCmdBindPipeline(commandBuffer,VK_PIPELINE_BIND_POINT_COMPUTE,pipeline.handle);
     vkCmdBindDescriptorSets(commandBuffer,VK_PIPELINE_BIND_POINT_COMPUTE,
-        layout.pipelineLayout,0,1,&layout.descriptorSet,0,nullptr);
+        layout.pipelineLayout,0,3,layout.descriptorSets.data(),0,nullptr);
     vkCmdDispatch(commandBuffer,groupCountX,groupCountY,groupCountZ);
     return true;
+}
+
+bool PGAndroidRecordDrawInRenderTargets(VkCommandBuffer commandBuffer,
+    PGAndroidGpuResources &resources, const PGAndroidRenderTargets &targets,
+    const uint32_t *colorViewIds, uint32_t colorCount, uint32_t depthViewId,
+    const VkClearColorValue *colorClears, float depthClear, uint32_t stencilClear,
+    const PGAndroidPipeline &pipeline, const PGAndroidPipelineLayout &layout,
+    const uint32_t *vertexBufferIds, const VkDeviceSize *vertexOffsets,
+    uint32_t vertexBufferCount, uint32_t indexBufferId, VkDeviceSize indexOffset,
+    VkIndexType indexType, uint32_t vertexCount, uint32_t indexCount,
+    uint32_t instanceCount, uint32_t firstVertexOrIndex, int32_t vertexOffset,
+    uint32_t firstInstance) {
+    if (!PGAndroidBeginRenderTargets(commandBuffer,resources,colorViewIds,colorCount,
+        depthViewId,targets,colorClears,depthClear,stencilClear)) return false;
+    const bool recorded=PGAndroidRecordDraw(commandBuffer,pipeline,layout,resources,
+        vertexBufferIds,vertexOffsets,vertexBufferCount,indexBufferId,indexOffset,indexType,
+        vertexCount,indexCount,instanceCount,firstVertexOrIndex,vertexOffset,firstInstance);
+    vkCmdEndRenderPass(commandBuffer);
+    return recorded;
 }
