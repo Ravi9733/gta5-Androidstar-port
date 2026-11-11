@@ -114,7 +114,12 @@ bool PGAndroidBeginRenderTargets(VkCommandBuffer commandBuffer,
         if (!resources.prepareAttachment(commandBuffer,colorViewIds[i],false,view,format,samples))
             return false;
         if (colorClears) clears[i].color=colorClears[i];
-        else clears[i].color={{0.0f,0.0f,0.0f,1.0f}};
+        else {
+            clears[i].color.float32[0]=0.0f;
+            clears[i].color.float32[1]=0.0f;
+            clears[i].color.float32[2]=0.0f;
+            clears[i].color.float32[3]=1.0f;
+        }
     }
     if (depthViewId) {
         VkImageView view=VK_NULL_HANDLE; VkFormat format=VK_FORMAT_UNDEFINED;
