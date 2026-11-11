@@ -783,6 +783,55 @@ bool PGAndroidGpuResources::prepareAttachment(VkCommandBuffer commandBuffer, uin
     return true;
 }
 
+bool PGAndroidGpuResources::prepareShaderResource(VkCommandBuffer commandBuffer,
+    uint32_t viewId, bool unorderedAccess) {
+    if(commandBuffer==VK_NULL_HANDLE) return false;
+    auto vi=views_.find(viewId);
+    if(vi==views_.end() || vi->second.bufferView || !vi->second.view ||
+       vi->second.unorderedAccess!=unorderedAccess) return false;
+    auto ti=textures_.find(vi->second.resourceId);
+    if(ti==textures_.end()) return false;
+    TextureResource &texture=ti->second;
+    const uint32_t required=unorderedAccess ? 0x80u : 0x08u;
+    if((texture.bind & required)!=required) return false;
+    const VkImageLayout target=unorderedAccess ? VK_IMAGE_LAYOUT_GENERAL :
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    if(texture.layout==target) return true;
+    VkImageMemoryBarrier barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+    barrier.srcAccessMask=texture.layout==VK_IMAGE_LAYOUT_UNDEFINED ? 0 :
+        (texture.layout==VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL ? VK_ACCESS_TRANSFER_WRITE_BIT :
+         texture.layout==VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL ? VK_ACCESS_TRANSFER_READ_BIT :
+         texture.layout==VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL ?
+            VK_ACCESS_COLOR_ATTACHMENT_READ_BIT|VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT :
+         texture.layout==VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL ?
+            VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT|VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT :
+         texture.layout==VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL ? VK_ACCESS_SHADER_READ_BIT :
+         texture.layout==VK_IMAGE_LAYOUT_GENERAL ? VK_ACCESS_SHADER_READ_BIT|VK_ACCESS_SHADER_WRITE_BIT :
+         VK_ACCESS_MEMORY_READ_BIT|VK_ACCESS_MEMORY_WRITE_BIT);
+    barrier.dstAccessMask=unorderedAccess ? VK_ACCESS_SHADER_READ_BIT|VK_ACCESS_SHADER_WRITE_BIT :
+        VK_ACCESS_SHADER_READ_BIT;
+    barrier.oldLayout=texture.layout; barrier.newLayout=target;
+    barrier.srcQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED;
+    barrier.image=texture.image;
+    barrier.subresourceRange.aspectMask=isDepthVkFormat(texture.format) ?
+        VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+    if(texture.format==VK_FORMAT_D24_UNORM_S8_UINT ||
+       texture.format==VK_FORMAT_D32_SFLOAT_S8_UINT)
+        barrier.subresourceRange.aspectMask|=VK_IMAGE_ASPECT_STENCIL_BIT;
+    barrier.subresourceRange.baseMipLevel=0;
+    barrier.subresourceRange.levelCount=texture.mipLevels;
+    barrier.subresourceRange.baseArrayLayer=0;
+    barrier.subresourceRange.layerCount=texture.layers;
+    const VkPipelineStageFlags srcStage=texture.layout==VK_IMAGE_LAYOUT_UNDEFINED ?
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT : VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    vkCmdPipelineBarrier(commandBuffer,srcStage,
+        VK_PIPELINE_STAGE_VERTEX_SHADER_BIT|VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT|
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,0,0,nullptr,0,nullptr,1,&barrier);
+    texture.layout=target;
+    return true;
+}
+
 bool PGAndroidGpuResources::getImageDescriptor(uint32_t id,
                                                 VkDescriptorImageInfo &out, bool unorderedAccess) const {
     const auto it = views_.find(id);
