@@ -6,6 +6,7 @@ from pathlib import Path
 
 SPIRV_MAGIC = 0x07230203
 SAFE_NAME = re.compile(r"^[A-Za-z0-9_-]+$")
+SAFE_HASH = re.compile(r"^[0-9a-fA-F]{16}$")
 
 
 def compile_inventory(shader_dir: Path, output_dir: Path, compiler: str = "naga") -> dict:
@@ -37,9 +38,14 @@ def compile_inventory(shader_dir: Path, output_dir: Path, compiler: str = "naga"
         data = target.read_bytes()
         if len(data) < 20 or len(data) % 4 or struct.unpack_from("<I", data)[0] != SPIRV_MAGIC:
             raise SystemExit(f"Compiler produced invalid SPIR-V for {name}")
+        original_hash = record.get("original_hash", record.get("hash"))
+        if original_hash is not None and (
+            not isinstance(original_hash, str) or not SAFE_HASH.fullmatch(original_hash)
+        ):
+            raise SystemExit(f"Invalid original iOS shader hash for {name}: {original_hash!r}")
         compiled.append({
             "id": name,
-            "hash": name,
+            "original_hash": original_hash.lower() if original_hash is not None else None,
             "stage": stage,
             "spirv": target.name,
             "bytes": len(data),
