@@ -393,7 +393,7 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         view.setText(value);
         view.setTextSize(size);
         view.setTextColor(color);
-        if (bold) view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        view.setTypeface(Typeface.create("sans-serif-rounded", bold ? Typeface.BOLD : Typeface.NORMAL));
         return view;
     }
 
