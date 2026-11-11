@@ -190,6 +190,14 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         playParams.topMargin = dp(17);
         left.addView(playButton, playParams);
 
+        Button exitButton = smallButton("EXIT  ·  QUIT PORT");
+        exitButton.setTextColor(Color.WHITE);
+        exitButton.setOnClickListener(v -> finish());
+        LinearLayout.LayoutParams exitParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(44));
+        exitParams.topMargin = dp(9);
+        left.addView(exitButton, exitParams);
+
         LinearLayout right = new LinearLayout(this);
         right.setOrientation(LinearLayout.VERTICAL);
         right.setPadding(dp(16), dp(8), 0, dp(8));
