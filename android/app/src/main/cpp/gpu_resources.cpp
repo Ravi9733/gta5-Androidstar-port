@@ -67,6 +67,9 @@ bool PGAndroidGpuResources::createBuffer(const uint32_t *p, uint32_t n) {
     VkMemoryAllocateInfo allocation{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
     allocation.allocationSize = requirements.size;
     allocation.memoryTypeIndex = memoryType;
+    VkPhysicalDeviceMemoryProperties memoryProperties{};
+    vkGetPhysicalDeviceMemoryProperties(physical_, &memoryProperties);
+    resource.memoryFlags = memoryProperties.memoryTypes[memoryType].propertyFlags;
     if (vkAllocateMemory(device_, &allocation, nullptr, &resource.memory) != VK_SUCCESS ||
         vkBindBufferMemory(device_, resource.buffer, resource.memory, 0) != VK_SUCCESS ||
         vkMapMemory(device_, resource.memory, 0, VK_WHOLE_SIZE, 0, &resource.mapped) != VK_SUCCESS) {
@@ -88,24 +91,13 @@ bool PGAndroidGpuResources::uploadBuffer(const uint32_t *p, uint32_t n) {
         return false;
     if (bytes) {
         std::memcpy(static_cast<uint8_t *>(it->second.mapped) + offset, p + 3, bytes);
-        VkPhysicalDeviceMemoryProperties properties{};
-        vkGetPhysicalDeviceMemoryProperties(physical_, &properties);
-        // Coherent memory needs no explicit flush; non-coherent memory is flushed
-        // using the whole allocation to satisfy atom-size alignment.
-        VkMemoryRequirements req{};
-        vkGetBufferMemoryRequirements(device_, it->second.buffer, &req);
-        (void)req;
-        VkMappedMemoryRange range{VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE};
-        range.memory = it->second.memory;
-        range.offset = 0;
-        range.size = VK_WHOLE_SIZE;
-        uint32_t type = UINT32_MAX;
-        (void)properties;
-        // The allocation was selected coherent when available. If it was not,
-        // a flush is still safe only when the chosen memory type is non-coherent;
-        // use vkFlushMappedMemoryRanges for all mapped host-visible allocations.
-        VkResult flushed = vkFlushMappedMemoryRanges(device_, 1, &range);
-        if (flushed != VK_SUCCESS) return false;
+        if (!(it->second.memoryFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+            VkMappedMemoryRange range{VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE};
+            range.memory = it->second.memory;
+            range.offset = 0;
+            range.size = VK_WHOLE_SIZE;
+            if (vkFlushMappedMemoryRanges(device_, 1, &range) != VK_SUCCESS) return false;
+        }
     }
     return true;
 }
