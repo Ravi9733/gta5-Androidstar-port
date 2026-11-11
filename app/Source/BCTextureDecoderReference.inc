@@ -5,7 +5,8 @@ void *PGDecodeBCReference(int format,uint32_t width,uint32_t height,uint32_t dep
   uint64_t bytes=(uint64_t)width*height*depth*pixelBytes;if(bytes>256*1024*1024)return NULL;
   uint8_t *decoded=malloc(bytes);if(!decoded)return NULL;
   uint32_t blocksX=(width+3)/4,blocksY=(height+3)/4;size_t blockBytes=format==1||format==4?8:16;
-  if(!rowPitch)rowPitch=blocksX*blockBytes;if(rowPitch<blocksX*blockBytes){free(decoded);return NULL;}
+  if(!rowPitch) rowPitch=blocksX*blockBytes;
+  if(rowPitch<blocksX*blockBytes){free(decoded);return NULL;}
   size_t slicePitch=(size_t)rowPitch*(rowsPerImage?rowsPerImage:blocksY);
   if(depth>1&&slicePitch*(depth-1)+(size_t)(blocksY-1)*rowPitch+blocksX*blockBytes>sourceSize)slicePitch=sourceSize/depth;
   for(uint32_t z=0;z<depth;z++)for(uint32_t by=0;by<blocksY;by++)for(uint32_t bx=0;bx<blocksX;bx++){
