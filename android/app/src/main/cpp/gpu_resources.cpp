@@ -73,8 +73,8 @@ bool PGAndroidGpuResources::createBuffer(const uint32_t *p, uint32_t n) {
     if (vkAllocateMemory(device_, &allocation, nullptr, &resource.memory) != VK_SUCCESS ||
         vkBindBufferMemory(device_, resource.buffer, resource.memory, 0) != VK_SUCCESS ||
         vkMapMemory(device_, resource.memory, 0, VK_WHOLE_SIZE, 0, &resource.mapped) != VK_SUCCESS) {
-        if (resource.memory) vkFreeMemory(device_, resource.memory, nullptr);
         vkDestroyBuffer(device_, resource.buffer, nullptr);
+        if (resource.memory) vkFreeMemory(device_, resource.memory, nullptr);
         return false;
     }
     std::memset(resource.mapped, 0, bytes);
@@ -87,7 +87,7 @@ bool PGAndroidGpuResources::uploadBuffer(const uint32_t *p, uint32_t n) {
     const uint32_t id = p[0], offset = p[1], bytes = p[2];
     auto it = buffers_.find(id);
     if (it == buffers_.end() || offset > it->second.size ||
-        bytes > it->second.size - offset || bytes > (n - 3u) * sizeof(uint32_t))
+        bytes > it->second.size - offset || static_cast<uint64_t>(bytes) > static_cast<uint64_t>(n - 3u) * sizeof(uint32_t))
         return false;
     if (bytes) {
         std::memcpy(static_cast<uint8_t *>(it->second.mapped) + offset, p + 3, bytes);
