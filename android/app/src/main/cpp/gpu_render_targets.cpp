@@ -18,13 +18,19 @@ bool PGAndroidCreateRenderTargets(VkDevice device, const PGAndroidGpuResources &
     VkSampleCountFlagBits commonSamples=VK_SAMPLE_COUNT_1_BIT;
     bool haveSamples=false;
 
+    PGAndroidRenderTargets result{};
+    result.width=width; result.height=height;
+    result.colorCount=colorCount; result.hasDepth=depthViewId!=0;
+    result.depthViewId=depthViewId;
     for (uint32_t i=0;i<colorCount;++i) {
+        if (!colorViewIds[i]) return false;
+        for (uint32_t j=0;j<i;++j) if (colorViewIds[j]==colorViewIds[i]) return false;
         VkImageView view=VK_NULL_HANDLE; VkFormat format=VK_FORMAT_UNDEFINED;
         VkSampleCountFlagBits samples=VK_SAMPLE_COUNT_1_BIT;
-        if (!resources.getAttachmentInfo(colorViewIds[i],false,view,format,samples))
-            return false;
+        if (!resources.getAttachmentInfo(colorViewIds[i],false,view,format,samples)) return false;
         if (haveSamples && samples!=commonSamples) return false;
         commonSamples=samples; haveSamples=true;
+        result.colorViewIds[i]=colorViewIds[i];
         VkAttachmentDescription attachment{};
         attachment.format=format; attachment.samples=samples;
         attachment.loadOp=VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -44,7 +50,6 @@ bool PGAndroidCreateRenderTargets(VkDevice device, const PGAndroidGpuResources &
         VkSampleCountFlagBits samples=VK_SAMPLE_COUNT_1_BIT;
         if (!resources.getAttachmentInfo(depthViewId,true,view,format,samples) ||
             (haveSamples && samples!=commonSamples)) return false;
-        commonSamples=samples; haveSamples=true;
         VkAttachmentDescription attachment{};
         attachment.format=format; attachment.samples=samples;
         attachment.loadOp=VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -53,8 +58,7 @@ bool PGAndroidCreateRenderTargets(VkDevice device, const PGAndroidGpuResources &
         attachment.stencilStoreOp=VK_ATTACHMENT_STORE_OP_STORE;
         attachment.initialLayout=VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         attachment.finalLayout=VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        depthRef={static_cast<uint32_t>(attachments.size()),
-                  VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
+        depthRef={static_cast<uint32_t>(attachments.size()),VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
         attachments.push_back(attachment);
         imageViews.push_back(view);
     }
@@ -80,12 +84,7 @@ bool PGAndroidCreateRenderTargets(VkDevice device, const PGAndroidGpuResources &
     passInfo.pAttachments=attachments.data();
     passInfo.subpassCount=1; passInfo.pSubpasses=&subpass;
     passInfo.dependencyCount=1; passInfo.pDependencies=&dependency;
-
-    PGAndroidRenderTargets result{};
-    result.width=width; result.height=height;
-    result.colorCount=colorCount; result.hasDepth=depthViewId!=0;
-    if (vkCreateRenderPass(device,&passInfo,nullptr,&result.renderPass)!=VK_SUCCESS)
-        return false;
+    if (vkCreateRenderPass(device,&passInfo,nullptr,&result.renderPass)!=VK_SUCCESS) return false;
     VkFramebufferCreateInfo fbInfo{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
     fbInfo.renderPass=result.renderPass;
     fbInfo.attachmentCount=static_cast<uint32_t>(imageViews.size());
@@ -105,7 +104,10 @@ bool PGAndroidBeginRenderTargets(VkCommandBuffer commandBuffer,
     const VkClearColorValue *colorClears, float depthClear, uint32_t stencilClear) {
     if (commandBuffer==VK_NULL_HANDLE || !targets.renderPass || !targets.framebuffer ||
         colorCount!=targets.colorCount || (colorCount && !colorViewIds) ||
-        (depthViewId!=0)!=targets.hasDepth) return false;
+        (depthViewId!=0)!=targets.hasDepth || depthViewId!=targets.depthViewId ||
+        depthClear<0.0f || depthClear>1.0f) return false;
+    for (uint32_t i=0;i<colorCount;++i)
+        if (!colorViewIds[i] || colorViewIds[i]!=targets.colorViewIds[i]) return false;
 
     std::vector<VkClearValue> clears(colorCount+(depthViewId?1u:0u));
     for (uint32_t i=0;i<colorCount;++i) {
