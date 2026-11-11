@@ -381,14 +381,17 @@ Java_com_ravi_gta5port_MainActivity_nativeRenderFrame(JNIEnv *, jclass) {
     uint32_t imageIndex = 0;
     VkResult acquired = vkAcquireNextImageKHR(host.device, host.swapchain, UINT64_MAX,
         host.imageAvailable[slot], VK_NULL_HANDLE, &imageIndex);
-    if (acquired == VK_ERROR_OUT_OF_DATE_KHR) return JNI_FALSE;
+    if (acquired == VK_ERROR_OUT_OF_DATE_KHR) {
+        (void)makeSwapchain(static_cast<uint32_t>(ANativeWindow_getWidth(host.window)),
+                            static_cast<uint32_t>(ANativeWindow_getHeight(host.window)));
+        return JNI_FALSE;
+    }
     if (acquired != VK_SUCCESS && acquired != VK_SUBOPTIMAL_KHR) {
         check(acquired, "vkAcquireNextImageKHR");
         return JNI_FALSE;
     }
     if (imageIndex >= host.framebuffers.size()) return JNI_FALSE;
-    if (!check(vkResetFences(host.device, 1, &host.inFlight[slot]), "vkResetFences") ||
-        !check(vkResetCommandBuffer(host.commandBuffers[slot], 0), "vkResetCommandBuffer"))
+    if (!check(vkResetCommandBuffer(host.commandBuffers[slot], 0), "vkResetCommandBuffer"))
         return JNI_FALSE;
     VkCommandBufferBeginInfo begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -415,8 +418,23 @@ Java_com_ravi_gta5port_MainActivity_nativeRenderFrame(JNIEnv *, jclass) {
     submit.pCommandBuffers = &host.commandBuffers[slot];
     submit.signalSemaphoreCount = 1;
     submit.pSignalSemaphores = &host.renderFinished[slot];
-    if (!check(vkQueueSubmit(host.queue, 1, &submit, host.inFlight[slot]), "vkQueueSubmit"))
+    // Reset only when a complete command buffer is ready to submit. If recording
+    // fails earlier, the fence remains signaled and the next frame cannot deadlock.
+    if (!check(vkResetFences(host.device, 1, &host.inFlight[slot]), "vkResetFences"))
         return JNI_FALSE;
+    VkResult submitted = vkQueueSubmit(host.queue, 1, &submit, host.inFlight[slot]);
+    if (submitted != VK_SUCCESS) {
+        check(submitted, "vkQueueSubmit");
+        // A failed submit will never signal the reset fence; replace it in the
+        // signaled state so a later frame can recover instead of waiting forever.
+        vkDestroyFence(host.device, host.inFlight[slot], nullptr);
+        VkFenceCreateInfo recovery{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+        recovery.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        host.inFlight[slot] = VK_NULL_HANDLE;
+        if (!check(vkCreateFence(host.device, &recovery, nullptr, &host.inFlight[slot]),
+                   "vkCreateFence(recovery)")) return JNI_FALSE;
+        return JNI_FALSE;
+    }
     VkPresentInfoKHR present{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
     present.waitSemaphoreCount = 1;
     present.pWaitSemaphores = &host.renderFinished[slot];
@@ -425,7 +443,12 @@ Java_com_ravi_gta5port_MainActivity_nativeRenderFrame(JNIEnv *, jclass) {
     present.pImageIndices = &imageIndex;
     VkResult shown = vkQueuePresentKHR(host.queue, &present);
     host.frameIndex = (slot + 1) % 2;
-    if (shown == VK_ERROR_OUT_OF_DATE_KHR || shown == VK_SUBOPTIMAL_KHR) return JNI_FALSE;
+    if (shown == VK_ERROR_OUT_OF_DATE_KHR || shown == VK_SUBOPTIMAL_KHR ||
+        acquired == VK_SUBOPTIMAL_KHR) {
+        (void)makeSwapchain(static_cast<uint32_t>(ANativeWindow_getWidth(host.window)),
+                            static_cast<uint32_t>(ANativeWindow_getHeight(host.window)));
+        return JNI_FALSE;
+    }
     if (!check(shown, "vkQueuePresentKHR")) return JNI_FALSE;
     return JNI_TRUE;
 }
