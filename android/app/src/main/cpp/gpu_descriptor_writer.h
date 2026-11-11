@@ -12,6 +12,7 @@ struct PGAndroidDescriptorBinding {
     uint32_t binding = 0;
     uint32_t arrayElement = 0;
     VkDescriptorType type = VK_DESCRIPTOR_TYPE_MAX_ENUM;
+    VkShaderStageFlags stageFlags = VK_SHADER_STAGE_ALL;
     uint32_t resourceId = 0;
     uint32_t samplerId = 0;
     VkDeviceSize offset = 0;
@@ -22,6 +23,8 @@ struct PGAndroidDescriptorBinding {
 // pipeline layouts remain owned by the shader/pipeline stage.
 class PGAndroidDescriptorWriter {
 public:
+    bool createSetLayout(VkDevice device, const PGAndroidDescriptorBinding *bindings,
+                         uint32_t count, VkDescriptorSetLayout &out) const;
     bool update(VkDevice device, VkDescriptorSet set, const PGAndroidGpuResources &resources,
                 const PGAndroidDescriptorBinding *bindings, uint32_t count) const;
 };
