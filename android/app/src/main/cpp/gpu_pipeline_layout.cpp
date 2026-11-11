@@ -56,6 +56,41 @@ bool PGAndroidCreatePipelineLayout(
     return true;
 }
 
+bool PGAndroidUpdatePipelineDescriptors(
+    const PGAndroidPipelineLayout &layout, const PGAndroidShaderModule *shaders,
+    uint32_t shaderCount, const PGAndroidGpuBindingState &state,
+    const PGAndroidGpuResources &resources, PGAndroidDescriptorWriter &writer) {
+    if (!layout.descriptorSet || !shaders || shaderCount == 0) return false;
+    std::unordered_map<uint32_t, PGAndroidDescriptorBinding> resolved;
+    for (uint32_t i=0;i<shaderCount;++i) {
+        std::vector<PGAndroidDescriptorBinding> stageBindings;
+        if (!PGAndroidRefreshShaderDescriptors(shaders[i],state,stageBindings)) return false;
+        for (const auto &binding : stageBindings) {
+            auto it=resolved.find(binding.binding);
+            if (it == resolved.end()) {
+                resolved.emplace(binding.binding,binding);
+                continue;
+            }
+            const auto &prior=it->second;
+            if (prior.type != binding.type || prior.resourceId != binding.resourceId ||
+                prior.samplerId != binding.samplerId || prior.offset != binding.offset ||
+                prior.range != binding.range || prior.arrayElement != binding.arrayElement)
+                return false; // Current single-set layout cannot represent stage-local resources.
+            it->second.stageFlags |= binding.stageFlags;
+        }
+    }
+    std::vector<PGAndroidDescriptorBinding> writes;
+    writes.reserve(resolved.size());
+    for (const auto &entry : resolved) writes.push_back(entry.second);
+    std::sort(writes.begin(),writes.end(),[](const auto &a,const auto &b){return a.binding<b.binding;});
+    if (writes.size() != layout.bindings.size()) return false;
+    for (size_t i=0;i<writes.size();++i)
+        if (writes[i].binding != layout.bindings[i].binding ||
+            writes[i].type != layout.bindings[i].type) return false;
+    return writer.update(VK_NULL_HANDLE, layout.descriptorSet, resources,
+                         writes.data(), static_cast<uint32_t>(writes.size()));
+}
+
 void PGAndroidDestroyPipelineLayout(VkDevice device, PGAndroidDescriptorPool &pool,
                                     PGAndroidPipelineLayout &layout) {
     if (device && layout.descriptorSet) (void)pool.free(layout.descriptorSet);
