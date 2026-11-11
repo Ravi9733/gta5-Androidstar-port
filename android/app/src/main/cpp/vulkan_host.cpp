@@ -524,6 +524,10 @@ extern "C" bool PGAndroidExecuteGpuPacket(uint32_t opcode, const uint32_t *words
             return true;
         case PG_ANDROID_OP_CREATE_TEXTURE:
             return host.resources->createTexture(words, wordCount);
+        case PG_ANDROID_OP_CREATE_SRV:
+            return host.resources->createTextureView(words, wordCount, false);
+        case PG_ANDROID_OP_CREATE_UAV:
+            return host.resources->createTextureView(words, wordCount, true);
         case PG_ANDROID_OP_CREATE_BUFFER:
             return host.resources->createBuffer(words, wordCount);
         case PG_ANDROID_OP_UPLOAD_TEXTURE:
