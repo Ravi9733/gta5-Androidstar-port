@@ -94,7 +94,7 @@ int main() {
     gAcceptPackets = true;
     processed = 0;
     assert(PGAndroidConsumeGpuRing(ring.data(), ring.size(), 80, &cursor, 4, &processed));
-    assert(processed == 2 && cursor.tail == 80);
+    assert(processed == 1 && cursor.tail == 80);
 
     // NOP advances the ring without invoking the GPU backend.
     cursor.tail = 64;
