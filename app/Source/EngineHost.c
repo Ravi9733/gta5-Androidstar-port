@@ -32,8 +32,8 @@ static void pg_mod_test_recheck(void);
 #include "NativeMemoryBudget.h"
 #if defined(__ANDROID__)
 #define PG_MINCORE_HELD(value) ((value) & 1)
-#define PG_MADV_FREE_REUSABLE MADV_DONTNEED
-#define PG_MADV_FREE_REUSE MADV_DONTNEED
+#define PG_MADV_FREE_REUSABLE (-1)
+#define PG_MADV_FREE_REUSE (-1)
 #else
 #define PG_MINCORE_HELD(value) ((value) & (MINCORE_INCORE | MINCORE_PAGED_OUT))
 #define PG_MADV_FREE_REUSABLE MADV_FREE_REUSABLE
@@ -280,6 +280,11 @@ uint64_t PGHeapReuseFailedBytes(void){return atomic_load(&heapReuseFailedBytes);
 // between them.
 // PG_HEAP_RETURN_SKIP_MESH=0 advises the whole range in one call as before (A/B). Returns the bytes advised.
 static uint64_t pg_advise_runs(uint64_t b,uint64_t e,int advice,uint64_t *failed){
+#if defined(__ANDROID__)
+ (void)b; (void)e; (void)advice; (void)failed;
+ // Android MADV_DONTNEED discards contents; it is not a substitute for Apple's reusable-page API.
+ return 0;
+#else
  static int skipMesh=-1;if(skipMesh<0){const char *v=getenv("PG_HEAP_RETURN_SKIP_MESH");skipMesh=!(v&&atoi(v)==0);}
 #if defined(__ANDROID__)
  long pageValue=sysconf(_SC_PAGESIZE);const uint64_t page=pageValue>0?(uint64_t)pageValue:4096;
@@ -293,6 +298,7 @@ static uint64_t pg_advise_runs(uint64_t b,uint64_t e,int advice,uint64_t *failed
   run=p+page;
  }
  return done;
+#endif
 }
 static bool heapReturnOn(void){
 #if defined(__ANDROID__)
@@ -309,7 +315,7 @@ static bool heapReturnOn(void){
 void PGMeshFreed(uint64_t start,uint64_t size);	// NativeMeshRelease.c: dead mesh pieces in freed memory can go (GTA-217)
 void pg_buddy_free(w2c_game *instance,u64 allocator,u64 block){
  if(!block)return;
- const uint64_t page=16384,size=PG_FN_BUDDY_GET_SIZE(instance,allocator,block);
+ const uint64_t page=pg_system_page_size(),size=PG_FN_BUDDY_GET_SIZE(instance,allocator,block);
  PGMeshFreed(block,size);
  if(!heapReturnOn())return;
  // Blocks of 64 KB or more by default. PG_HEAP_RETURN_MIN_KB=16 (GTA-217) also returns blocks of one page: in the lab's
