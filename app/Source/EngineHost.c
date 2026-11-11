@@ -71,10 +71,9 @@ static uint64_t pg_android_process_limit(void) {
   uint64_t limit = pg_android_read_number("/sys/fs/cgroup/memory.max");
   if (!limit || limit >= (1ull << 60))
     limit = pg_android_read_number("/sys/fs/cgroup/memory/memory.limit_in_bytes");
-  if (limit && limit < (1ull << 60)) return limit;
-  struct sysinfo info;
-  if (sysinfo(&info) == 0) return (uint64_t)info.totalram * info.mem_unit;
-  return 0;
+  // Do not substitute total device RAM for an app/process limit: that would overstate
+  // the engine's safe texture budget on devices with a tighter per-app cgroup.
+  return limit && limit < (1ull << 60) ? limit : 0;
 }
 static bool pg_android_cgroup_headroom(uint64_t *headroom) {
   uint64_t limit = pg_android_read_number("/sys/fs/cgroup/memory.max");
