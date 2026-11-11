@@ -509,7 +509,6 @@ bool PGAndroidGpuResources::createSamplerState(const uint32_t *p, uint32_t n) {
         buffers_.count(p[0]) || textures_.count(p[0]) || views_.count(p[0])) return false;
     const uint32_t *w = p + 2;
     const uint32_t filter = w[0];
-    const bool anisotropic = (filter & 0x7fu) == 0x55u;
     auto addressMode = [](uint32_t mode) {
         switch (mode) {
             case 2: return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
@@ -679,6 +678,13 @@ bool PGAndroidGpuResources::getImageDescriptor(uint32_t id,
 }
 
 bool PGAndroidGpuResources::destroyObject(uint32_t id) {
+    const auto samplerIt = samplers_.find(id);
+    if (samplerIt != samplers_.end()) {
+        if (vkDeviceWaitIdle(device_) != VK_SUCCESS) return false;
+        if (samplerIt->second) vkDestroySampler(device_, samplerIt->second, nullptr);
+        samplers_.erase(samplerIt);
+        return true;
+    }
     const auto viewIt = views_.find(id);
     if (viewIt != views_.end()) {
         if (vkDeviceWaitIdle(device_) != VK_SUCCESS) return false;
@@ -718,6 +724,8 @@ bool PGAndroidGpuResources::destroyObject(uint32_t id) {
 }
 
 void PGAndroidGpuResources::reset() {
+    for (auto &entry : samplers_) if (entry.second) vkDestroySampler(device_, entry.second, nullptr);
+    samplers_.clear();
     for (auto &entry : views_) if (entry.second.view) vkDestroyImageView(device_, entry.second.view, nullptr);
     views_.clear();
     for (auto &entry : buffers_) {
