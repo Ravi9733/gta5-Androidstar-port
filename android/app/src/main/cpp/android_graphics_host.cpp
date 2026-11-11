@@ -27,19 +27,20 @@ std::thread gWorker;
 
 uint32_t loadAcquire(uint8_t *address) {
     auto *word = reinterpret_cast<uint32_t *>(address);
-    return std::atomic_ref<uint32_t>(*word).load(std::memory_order_acquire);
+    return __atomic_load_n(word, __ATOMIC_ACQUIRE);
 }
 void storeRelease(uint8_t *address, uint32_t value) {
     auto *word = reinterpret_cast<uint32_t *>(address);
-    std::atomic_ref<uint32_t>(*word).store(value, std::memory_order_release);
+    __atomic_store_n(word, value, __ATOMIC_RELEASE);
 }
 void addExecuted(uint8_t *address, uint32_t value) {
     auto *word = reinterpret_cast<uint32_t *>(address);
-    std::atomic_ref<uint32_t>(*word).fetch_add(value, std::memory_order_relaxed);
+    __atomic_fetch_add(word, value, __ATOMIC_RELAXED);
 }
 
 void runRingWorker(uint8_t *memory, uint64_t memorySize, uint64_t ringOffset,
                    uint32_t ringSize) {
+    (void)memorySize;
     uint8_t *ring = memory + ringOffset;
     storeRelease(ring + 4, kRingDataOffset);
     storeRelease(ring + 8, 1);
