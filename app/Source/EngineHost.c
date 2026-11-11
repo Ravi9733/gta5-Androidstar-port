@@ -30,6 +30,11 @@ static void pg_mod_test_recheck(void);
 #include <mach/mach.h>
 #endif
 #include "NativeMemoryBudget.h"
+#if defined(__ANDROID__)
+#define PG_MINCORE_HELD(value) ((value) & 1)
+#else
+#define PG_MINCORE_HELD(value) ((value) & (MINCORE_INCORE | MINCORE_PAGED_OUT))
+#endif
 #if TARGET_OS_MACCATALYST
 #include <sys/sysctl.h>
 #endif
@@ -406,13 +411,13 @@ void PGLogMemoryPools(void){
   if(e>size)e=size; if(b>=e)continue;
   size_t pages=(size_t)((e-b+page-1)/page);char *vec=malloc(pages);if(!vec)continue;
   uint64_t held=0;
-  if(mincore(data+b,(size_t)(e-b),vec)==0)for(size_t k=0;k<pages;k++)if(vec[k]&1)held+=page;
+  if(mincore(data+b,(size_t)(e-b),vec)==0)for(size_t k=0;k<pages;k++)if(PG_MINCORE_HELD(vec[k]))held+=page;
   free(vec);inRegions+=held;
   if(at<(int)sizeof line-48)at+=snprintf(line+at,sizeof line-at," %lluMB@%llx=%llu",(unsigned long long)(engineRegions[i].bytes>>20),(unsigned long long)engineRegions[i].base,(unsigned long long)(held>>20));
  }
  // The whole heap, to get what lies outside the pools (the engine's general allocations).
  uint64_t total=0;size_t pages=(size_t)(size/page);char *vec=malloc(pages);
- if(vec&&mincore(data,(size_t)(pages*page),vec)==0)for(size_t k=0;k<pages;k++)if(vec[k]&1)total+=page;
+ if(vec&&mincore(data,(size_t)(pages*page),vec)==0)for(size_t k=0;k<pages;k++)if(PG_MINCORE_HELD(vec[k]))total+=page;
  free(vec);
  uint64_t cpuCopies=0,copies=0,peak=0;
  if(8324232<=size){memcpy(&cpuCopies,data+8324208,8);memcpy(&copies,data+8324216,8);memcpy(&peak,data+8324224,8);}
