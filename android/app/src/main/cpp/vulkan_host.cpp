@@ -4,7 +4,6 @@
 #include <android/native_window_jni.h>
 #include <android/log.h>
 #include <vulkan/vulkan.h>
-#include "../../../../../app/Source/EngineHost.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -238,7 +237,16 @@ Java_com_ravi_gta5port_MainActivity_nativeDestroy(JNIEnv *, jclass) {
     destroyLocked();
 }
 
-extern "C" void PGUpdateController(PGControllerState state, double elapsedSeconds) __attribute__((weak));
+// Keep this ABI layout in sync with PGControllerState in app/Source/EngineHost.h.
+// EngineHost.c is compiled as C, so the optional symbol must use C language linkage.
+extern "C" {
+struct PGControllerState {
+    float leftX, leftY, rightX, rightY, leftTrigger, rightTrigger;
+    uint32_t buttons;
+    int32_t lookDX, lookDY;
+};
+void PGUpdateController(PGControllerState state, double elapsedSeconds) __attribute__((weak));
+}
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_ravi_gta5port_MainActivity_nativeUpdateController(
