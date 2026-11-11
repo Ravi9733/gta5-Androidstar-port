@@ -259,6 +259,7 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
     private void refreshFolderLabel() {
         if (filesDetail == null) return;
         if (selectedFolder.isEmpty()) {
+            folderLayoutFound = false;
             filesDetail.setText("No game folder selected");
             return;
         }
