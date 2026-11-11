@@ -15,6 +15,7 @@ public:
     bool uploadBuffer(const uint32_t *words, uint32_t wordCount);
     bool uploadTexture(const uint32_t *words, uint32_t wordCount);
     bool createTextureView(const uint32_t *words, uint32_t wordCount, bool unorderedAccess);
+    bool createSamplerState(const uint32_t *words, uint32_t wordCount);
     bool getBufferDescriptor(uint32_t objectId, VkDeviceSize offset, VkDeviceSize range,
                              VkDescriptorBufferInfo &out, uint32_t requiredBind) const;
     bool getImageDescriptor(uint32_t viewId, VkDescriptorImageInfo &out,
@@ -56,4 +57,5 @@ private:
     std::unordered_map<uint32_t, BufferResource> buffers_;
     std::unordered_map<uint32_t, TextureResource> textures_;
     std::unordered_map<uint32_t, ViewResource> views_;
+    std::unordered_map<uint32_t, VkSampler> samplers_;
 };
