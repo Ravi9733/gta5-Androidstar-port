@@ -7,7 +7,7 @@ bool PGAndroidCreateGraphicsPipeline(VkDevice device, VkPipelineCache cache,
     const PGAndroidShaderModule *shaders, uint32_t shaderCount,
     const VkGraphicsPipelineCreateInfo &createInfo, PGAndroidPipeline &out) {
     if (!device || !layout.pipelineLayout || !renderPass || !shaders ||
-        shaderCount < 2 || !createInfo.pStages || createInfo.stageCount != shaderCount ||
+        shaderCount != 2 || !createInfo.pStages || createInfo.stageCount != shaderCount ||
         !createInfo.pVertexInputState || !createInfo.pInputAssemblyState ||
         !createInfo.pViewportState || !createInfo.pRasterizationState ||
         !createInfo.pMultisampleState || !createInfo.pColorBlendState ||
