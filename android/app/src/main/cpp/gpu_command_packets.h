@@ -26,7 +26,7 @@ inline bool PGAndroidDecodeDrawPacket(const uint32_t *words, uint32_t wordCount,
     PGAndroidDrawPacket decoded{};
     decoded.kind=words[0];
     decoded.countOrArgumentBuffer=words[1];
-    decoded.instanceCount=words[2];
+    decoded.instanceCountOrArgumentOffset=words[2];
     decoded.startVertexOrIndex=words[3];
     decoded.baseVertex=static_cast<int32_t>(words[4]);
     decoded.startInstance=words[5];
