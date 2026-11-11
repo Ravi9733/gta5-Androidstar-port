@@ -229,10 +229,15 @@ bool PGAndroidGpuResources::uploadBuffer(const uint32_t *p, uint32_t n) {
 }
 
 bool PGAndroidGpuResources::destroyObject(uint32_t id) {
+    const auto bufferIt = buffers_.find(id);
+    const auto textureIt = textures_.find(id);
+    if (bufferIt == buffers_.end() && textureIt == textures_.end()) return false;
+    // Until deferred destruction is implemented, wait for all queued GPU uses
+    // before releasing either object type.
+    if (vkDeviceWaitIdle(device_) != VK_SUCCESS) return false;
     auto it = buffers_.find(id);
     if (it == buffers_.end()) {
         auto texture = textures_.find(id);
-        if (texture == textures_.end()) return false;
         if (texture->second.view) vkDestroyImageView(device_, texture->second.view, nullptr);
         if (texture->second.image) vkDestroyImage(device_, texture->second.image, nullptr);
         if (texture->second.memory) vkFreeMemory(device_, texture->second.memory, nullptr);
