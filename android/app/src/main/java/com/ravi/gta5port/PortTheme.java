@@ -15,8 +15,8 @@ import java.io.InputStream;
 final class PortTheme {
     static final int NIGHT = 0xff080d1a;
     static final int NIGHT_BLUE = 0xff101b31;
-    static final int ACCENT = 0xffff9e2e;
-    static final int ACCENT_DEEP = 0xfff25c29;
+    static final int ACCENT = 0xff39e75f;
+    static final int ACCENT_DEEP = 0xff079b48;
     static final int TEXT = 0xffffffff;
     static final int SECONDARY = 0xadffffff;
     static final int TERTIARY = 0x73ffffff;
@@ -67,9 +67,9 @@ final class PortTheme {
 
     static GradientDrawable selected(float radiusDp, float density) {
         GradientDrawable shape = new GradientDrawable();
-        shape.setColor(0x45ff9e2e);
+        shape.setColor(0x4539e75f);
         shape.setCornerRadius(radiusDp * density);
-        shape.setStroke(Math.max(1, Math.round(density)), 0x99ffb45c);
+        shape.setStroke(Math.max(1, Math.round(density)), 0x9939e75f);
         return shape;
     }
 
