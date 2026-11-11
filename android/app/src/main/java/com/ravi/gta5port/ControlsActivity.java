@@ -57,8 +57,7 @@ public final class ControlsActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(12), dp(8), dp(12), dp(10));
-        root.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-            new int[]{0xff182b48, 0xff080d1a, 0xff24172a}));
+        root.setBackground(PortTheme.poster(this, "posters/start-bg-iphone.jpg"));
 
         LinearLayout toolbar = new LinearLayout(this);
         toolbar.setGravity(Gravity.CENTER_VERTICAL);
