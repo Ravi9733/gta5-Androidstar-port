@@ -1,7 +1,10 @@
 #include "gpu_resources.h"
+#include "BCTextureDecoder.h"
 
 #include <algorithm>
 #include <cstring>
+#include <cstdlib>
+#include <memory>
 #include <limits>
 #include <vector>
 
@@ -47,6 +50,31 @@ VkFormat dxgiToVkFormat(uint32_t dxgi) {
         case 96: return VK_FORMAT_BC6H_SFLOAT_BLOCK;
         case 97: case 98: return VK_FORMAT_BC7_UNORM_BLOCK;
         case 99: return VK_FORMAT_BC7_SRGB_BLOCK;
+        default: return VK_FORMAT_UNDEFINED;
+    }
+}
+
+
+uint32_t bcDecoderFormat(uint32_t dxgi) {
+    switch (dxgi) {
+        case 70: case 71: case 72: return 1;
+        case 73: case 74: case 75: return 2;
+        case 76: case 77: case 78: return 3;
+        case 79: case 80: return 4;
+        case 82: case 83: return 5;
+        case 94: case 95: return 6;
+        case 97: case 98: case 99: return 7;
+        default: return 0; // Signed BC4/5 and signed BC6 require dedicated decoders.
+    }
+}
+VkFormat decodedBCFormat(uint32_t bc, uint32_t dxgi) {
+    const bool srgb = dxgi == 72 || dxgi == 75 || dxgi == 78 || dxgi == 99;
+    switch (bc) {
+        case 1: case 2: case 3: case 7:
+            return srgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
+        case 4: return VK_FORMAT_R8_UNORM;
+        case 5: return VK_FORMAT_R8G8_UNORM;
+        case 6: return VK_FORMAT_R16G16B16A16_SFLOAT;
         default: return VK_FORMAT_UNDEFINED;
     }
 }
@@ -188,8 +216,6 @@ bool PGAndroidGpuResources::createTexture(const uint32_t *p, uint32_t n) {
 
     const VkFormat format=dxgiToVkFormat(dxgi);
     if (format == VK_FORMAT_UNDEFINED) return false;
-    VkFormatProperties formatProperties{};
-    vkGetPhysicalDeviceFormatProperties(physical_, format, &formatProperties);
     VkImageUsageFlags usage=VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     if (bind & kBindShaderResource) usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
     if (bind & 0x20u) usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -200,7 +226,18 @@ bool PGAndroidGpuResources::createTexture(const uint32_t *p, uint32_t n) {
     if (usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) required |= VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT;
     if (usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) required |= VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
     if (usage & VK_IMAGE_USAGE_STORAGE_BIT) required |= VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT;
-    if ((formatProperties.optimalTilingFeatures & required) != required) return false;
+    VkFormatProperties formatProperties{};
+    vkGetPhysicalDeviceFormatProperties(physical_, format, &formatProperties);
+    bool decodeBC=false;
+    const uint32_t bcFormat=bcDecoderFormat(dxgi);
+    if ((formatProperties.optimalTilingFeatures & required) != required) {
+        if (!bcFormat) return false;
+        format=decodedBCFormat(bcFormat, dxgi);
+        if (format == VK_FORMAT_UNDEFINED) return false;
+        vkGetPhysicalDeviceFormatProperties(physical_, format, &formatProperties);
+        if ((formatProperties.optimalTilingFeatures & required) != required) return false;
+        decodeBC=true;
+    }
 
     VkImageCreateInfo info{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     info.imageType = dim == 1 ? VK_IMAGE_TYPE_1D : dim == 3 ? VK_IMAGE_TYPE_3D : VK_IMAGE_TYPE_2D;
@@ -218,6 +255,7 @@ bool PGAndroidGpuResources::createTexture(const uint32_t *p, uint32_t n) {
     resource.width=width; resource.height=height; resource.depth=depth;
     resource.mipLevels=mipLevels; resource.layers=layers; resource.dimension=dim;
     resource.bind=bind; resource.format=format;
+    resource.bcFormat=bcFormat; resource.decodeBC=decodeBC;
     if (vkCreateImage(device_, &info, nullptr, &resource.image) != VK_SUCCESS) return false;
     VkMemoryRequirements requirements{};
     vkGetImageMemoryRequirements(device_, resource.image, &requirements);
@@ -282,8 +320,9 @@ bool PGAndroidGpuResources::uploadBuffer(const uint32_t *p, uint32_t n) {
 bool PGAndroidGpuResources::uploadTexture(const uint32_t *p, uint32_t n) {
     if (!p || n < 12) return false;
     const uint32_t id=p[0], mip=p[1], slice=p[2], x=p[3], y=p[4], z=p[5];
-    const uint32_t width=p[6], height=p[7], depth=p[8], rowPitch=p[9];
-    const uint32_t rowsPerImage=p[10], dataBytes=p[11];
+    const uint32_t width=p[6], height=p[7], depth=p[8];
+    uint32_t rowPitch=p[9], rowsPerImage=p[10];
+    const uint32_t dataBytes=p[11];
     auto found=textures_.find(id);
     if (found == textures_.end()) return false;
     TextureResource &texture=found->second;
@@ -301,6 +340,21 @@ bool PGAndroidGpuResources::uploadTexture(const uint32_t *p, uint32_t n) {
         slice > texture.layers || depth > texture.layers-slice)) return false;
     if (texture.dimension == 3 && (slice || depth > mipDepth-z)) return false;
 
+    const uint8_t *uploadData=reinterpret_cast<const uint8_t *>(p+12);
+    uint32_t uploadBytes=dataBytes;
+    std::unique_ptr<void, decltype(&std::free)> decoded(nullptr, &std::free);
+    if (texture.decodeBC) {
+        if ((x & 3u) || (y & 3u)) return false;
+        size_t decodedSize=0;
+        decoded.reset(PGDecodeBC(static_cast<int>(texture.bcFormat), width, height, depth,
+                                 rowPitch, rowsPerImage, uploadData, dataBytes, &decodedSize));
+        if (!decoded || decodedSize > UINT32_MAX) return false;
+        uploadData=static_cast<const uint8_t *>(decoded.get());
+        uploadBytes=static_cast<uint32_t>(decodedSize);
+        rowPitch=0;
+        rowsPerImage=0;
+    }
+
     FormatBlock block{};
     if (!formatBlock(texture.format, block)) return false;
     if ((block.width > 1 && ((x % block.width) || (width % block.width && x+width != mipWidth))) ||
@@ -316,13 +370,13 @@ bool PGAndroidGpuResources::uploadTexture(const uint32_t *p, uint32_t n) {
     const uint64_t imageBytes=static_cast<uint64_t>(actualRowPitch)*actualRows;
     const uint64_t requiredBytes=imageBytes*(depth-1u)+
         static_cast<uint64_t>(actualRowPitch)*blockRows;
-    if (requiredBytes > dataBytes || requiredBytes > SIZE_MAX) return false;
+    if (requiredBytes > uploadBytes || requiredBytes > SIZE_MAX) return false;
 
     VkBuffer staging=VK_NULL_HANDLE;
     VkDeviceMemory stagingMemory=VK_NULL_HANDLE;
     void *mapped=nullptr;
     VkBufferCreateInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-    bufferInfo.size=dataBytes;
+    bufferInfo.size=uploadBytes;
     bufferInfo.usage=VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     bufferInfo.sharingMode=VK_SHARING_MODE_EXCLUSIVE;
     if (vkCreateBuffer(device_, &bufferInfo, nullptr, &staging) != VK_SUCCESS) return false;
@@ -344,7 +398,7 @@ bool PGAndroidGpuResources::uploadTexture(const uint32_t *p, uint32_t n) {
         vkDestroyBuffer(device_, staging, nullptr);
         return false;
     }
-    std::memcpy(mapped, p+12, dataBytes);
+    std::memcpy(mapped, uploadData, uploadBytes);
     if (!(memoryFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
         VkMappedMemoryRange range{VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE};
         range.memory=stagingMemory; range.offset=0; range.size=VK_WHOLE_SIZE;
