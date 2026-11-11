@@ -21,5 +21,9 @@ bool PGAndroidUpdatePipelineDescriptors(VkDevice device, const PGAndroidPipeline
     const PGAndroidShaderModule *shaders, uint32_t shaderCount,
     const PGAndroidGpuBindingState &state, const PGAndroidGpuResources &resources,
     PGAndroidDescriptorWriter &writer);
+bool PGAndroidPreparePipelineDescriptors(VkCommandBuffer commandBuffer, VkDevice device,
+    const PGAndroidPipelineLayout &layout, const PGAndroidShaderModule *shaders,
+    uint32_t shaderCount, const PGAndroidGpuBindingState &state,
+    PGAndroidGpuResources &resources, PGAndroidDescriptorWriter &writer);
 void PGAndroidDestroyPipelineLayout(VkDevice device, PGAndroidDescriptorPool &pool,
     PGAndroidPipelineLayout &layout);
