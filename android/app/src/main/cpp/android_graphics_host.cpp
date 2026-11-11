@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cstdint>
 #include <thread>
+#include <mutex>
 
 extern "C" bool PGAndroidGpuIsReady(void);
 extern "C" uint32_t PGGraphicsNotify(uint64_t address) __attribute__((weak));
@@ -20,6 +21,9 @@ constexpr uint32_t kBatchLimit = 512;
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, kTag, __VA_ARGS__)
 
 std::atomic<bool> gWorkerStarted{false};
+std::atomic<bool> gWorkerStop{false};
+std::mutex gWorkerMutex;
+std::thread gWorker;
 
 uint32_t loadAcquire(uint8_t *address) {
     auto *word = reinterpret_cast<uint32_t *>(address);
@@ -43,12 +47,12 @@ void runRingWorker(uint8_t *memory, uint64_t memorySize, uint64_t ringOffset,
     LOGI("Original iOS GPU ring attached: offset=%llu size=%u",
          static_cast<unsigned long long>(ringOffset), ringSize);
 
-    for (;;) {
+    while (!gWorkerStop.load(std::memory_order_acquire)) {
         const uint32_t head = loadAcquire(ring);
         if (head == cursor.tail || !PGAndroidGpuIsReady()) {
             storeRelease(ring + 20, 1);
             if (PGGraphicsWait) {
-                (void)PGGraphicsWait(ringOffset, head, 100000000ll);
+                (void)PGGraphicsWait(ringOffset, cursor.tail, 100000000ll);
             } else {
                 std::this_thread::sleep_for(std::chrono::milliseconds(2));
             }
@@ -77,6 +81,7 @@ void runRingWorker(uint8_t *memory, uint64_t memorySize, uint64_t ringOffset,
             break;
         }
     }
+    gWorkerStarted.store(false, std::memory_order_release);
 }
 } // namespace
 
@@ -91,11 +96,21 @@ extern "C" void PGStartGraphics(void *memory, uint64_t memorySize,
         LOGE("Refusing invalid engine GPU ring mapping");
         return;
     }
-    bool expected = false;
-    if (!gWorkerStarted.compare_exchange_strong(expected, true)) {
+    std::lock_guard<std::mutex> workerLock(gWorkerMutex);
+    if (gWorkerStarted.load(std::memory_order_acquire)) {
         LOGE("GPU ring worker already started; duplicate start ignored");
         return;
     }
-    std::thread(runRingWorker, static_cast<uint8_t *>(memory), memorySize,
-                ringOffset, static_cast<uint32_t>(ringSize)).detach();
+    if (gWorker.joinable()) gWorker.join();
+    gWorkerStop.store(false, std::memory_order_release);
+    gWorkerStarted.store(true, std::memory_order_release);
+    gWorker = std::thread(runRingWorker, static_cast<uint8_t *>(memory), memorySize,
+                          ringOffset, static_cast<uint32_t>(ringSize));
+}
+
+extern "C" void PGStopGraphics(void) {
+    gWorkerStop.store(true, std::memory_order_release);
+    std::lock_guard<std::mutex> workerLock(gWorkerMutex);
+    if (gWorker.joinable()) gWorker.join();
+    gWorkerStarted.store(false, std::memory_order_release);
 }
