@@ -9,6 +9,8 @@ struct PGAndroidRenderTargets {
     VkFramebuffer framebuffer = VK_NULL_HANDLE;
     uint32_t width = 0, height = 0;
     uint32_t colorCount = 0;
+    uint32_t colorViewIds[8]{};
+    uint32_t depthViewId = 0;
     bool hasDepth = false;
 };
 
