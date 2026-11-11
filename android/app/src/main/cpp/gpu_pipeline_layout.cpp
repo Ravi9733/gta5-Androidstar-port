@@ -81,6 +81,42 @@ bool PGAndroidUpdatePipelineDescriptors(VkDevice device,const PGAndroidPipelineL
     }
     return true;
 }
+bool PGAndroidPreparePipelineDescriptors(VkCommandBuffer commandBuffer,VkDevice device,
+    const PGAndroidPipelineLayout &layout,const PGAndroidShaderModule *shaders,
+    uint32_t shaderCount,const PGAndroidGpuBindingState &state,
+    PGAndroidGpuResources &resources,PGAndroidDescriptorWriter &writer) {
+    if(!commandBuffer || !device || !layout.pipelineLayout || !shaders || !shaderCount)
+        return false;
+    bool hasStorageBuffer=false;
+    for(uint32_t i=0;i<shaderCount;++i) {
+        std::vector<PGAndroidDescriptorBinding> live;
+        if(!PGAndroidRefreshShaderDescriptors(shaders[i],state,live)) return false;
+        for(const auto &binding:live) {
+            if(binding.type==VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE) {
+                if(!binding.resourceId ||
+                   !resources.prepareShaderResource(commandBuffer,binding.resourceId,false))
+                    return false;
+            } else if(binding.type==VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) {
+                if(!binding.resourceId ||
+                   !resources.prepareShaderResource(commandBuffer,binding.resourceId,true))
+                    return false;
+            } else if(binding.type==VK_DESCRIPTOR_TYPE_STORAGE_BUFFER) {
+                hasStorageBuffer=true;
+            }
+        }
+    }
+    if(hasStorageBuffer) {
+        VkMemoryBarrier barrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+        barrier.srcAccessMask=VK_ACCESS_SHADER_WRITE_BIT;
+        barrier.dstAccessMask=VK_ACCESS_SHADER_READ_BIT|VK_ACCESS_SHADER_WRITE_BIT;
+        vkCmdPipelineBarrier(commandBuffer,VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+            VK_PIPELINE_STAGE_VERTEX_SHADER_BIT|VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT|
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,0,1,&barrier,0,nullptr,0,nullptr);
+    }
+    return PGAndroidUpdatePipelineDescriptors(device,layout,shaders,shaderCount,
+        state,resources,writer);
+}
+
 void PGAndroidDestroyPipelineLayout(VkDevice device,PGAndroidDescriptorPool &pool,
     PGAndroidPipelineLayout &layout) {
     if(device && layout.pipelineLayout) vkDestroyPipelineLayout(device,layout.pipelineLayout,nullptr);
