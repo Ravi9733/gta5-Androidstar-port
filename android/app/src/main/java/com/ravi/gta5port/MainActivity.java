@@ -10,6 +10,9 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.DocumentsContract;
 import android.view.Gravity;
+import android.view.InputDevice;
+import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -46,10 +49,13 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
     private int selectedMode = 2;
     private int selectedMap = 0;
     private String selectedFolder = "";
+    private int controllerButtons;
 
     private static native boolean nativeCreate(Surface surface);
     private static native boolean nativeResize(int width, int height);
     private static native void nativeDestroy();
+    private static native void nativeUpdateController(float leftX, float leftY, float rightX, float rightY,
+        float leftTrigger, float rightTrigger, int buttons, int lookDX, int lookDY, double elapsedSeconds);
 
     @Override
     protected void onCreate(Bundle state) {
@@ -381,6 +387,69 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         nativeReady = false;
         refreshRuntimeStatus();
         if (status != null) status.setText("Vulkan surface released");
+    }
+
+    private int controllerBit(int keyCode) {
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_BUTTON_A: return 0;
+            case KeyEvent.KEYCODE_BUTTON_B: return 1;
+            case KeyEvent.KEYCODE_BUTTON_X: return 2;
+            case KeyEvent.KEYCODE_BUTTON_Y: return 3;
+            case KeyEvent.KEYCODE_BUTTON_L1: return 4;
+            case KeyEvent.KEYCODE_BUTTON_R1: return 5;
+            case KeyEvent.KEYCODE_BUTTON_START: return 6;
+            case KeyEvent.KEYCODE_DPAD_UP: return 7;
+            case KeyEvent.KEYCODE_DPAD_DOWN: return 8;
+            case KeyEvent.KEYCODE_DPAD_LEFT: return 9;
+            case KeyEvent.KEYCODE_DPAD_RIGHT: return 10;
+            default: return -1;
+        }
+    }
+
+    private void sendController(float leftX, float leftY, float rightX, float rightY,
+                                float leftTrigger, float rightTrigger) {
+        nativeUpdateController(leftX, leftY, rightX, rightY, leftTrigger, rightTrigger,
+            controllerButtons, 0, 0, 1.0 / 60.0);
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        int bit = controllerBit(keyCode);
+        if (bit >= 0) {
+            controllerButtons |= (1 << bit);
+            sendController(0, 0, 0, 0, 0, 0);
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+        int bit = controllerBit(keyCode);
+        if (bit >= 0) {
+            controllerButtons &= ~(1 << bit);
+            sendController(0, 0, 0, 0, 0, 0);
+            return true;
+        }
+        return super.onKeyUp(keyCode, event);
+    }
+
+    @Override
+    public boolean onGenericMotionEvent(MotionEvent event) {
+        if ((event.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
+            && event.getAction() == MotionEvent.ACTION_MOVE) {
+            float leftX = event.getAxisValue(MotionEvent.AXIS_X);
+            float leftY = -event.getAxisValue(MotionEvent.AXIS_Y);
+            float rightX = event.getAxisValue(MotionEvent.AXIS_Z);
+            float rightY = -event.getAxisValue(MotionEvent.AXIS_RZ);
+            float leftTrigger = Math.max(event.getAxisValue(MotionEvent.AXIS_LTRIGGER),
+                event.getAxisValue(MotionEvent.AXIS_BRAKE));
+            float rightTrigger = Math.max(event.getAxisValue(MotionEvent.AXIS_RTRIGGER),
+                event.getAxisValue(MotionEvent.AXIS_GAS));
+            sendController(leftX, leftY, rightX, rightY, leftTrigger, rightTrigger);
+            return true;
+        }
+        return super.onGenericMotionEvent(event);
     }
 
     @Override
