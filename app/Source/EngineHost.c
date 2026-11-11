@@ -3510,7 +3510,11 @@ void PGSetBackBufferSize(int width,int height){
   atomic_store((_Atomic int32_t *)(base+436),height&~1);
 }
 static void *boot(void *ignored) {
-  pthread_setname_np("gta.engine.main");	// for the Threads line (NativeThreadCPU.c)
+#if defined(__ANDROID__)
+  pthread_setname_np(pthread_self(), "gta.engine.main");
+#else
+  pthread_setname_np("gta.engine.main");
+#endif
   {extern void pg_engine_thread_qos(const char *name);pg_engine_thread_qos("gta.engine.main");}	// NativeThreads.c (GTA-216)
   // Real iOS must budget against its Jetsam allowance. Simulator runs opt in
   // with an explicit modeled ceiling so ordinary performance baselines match.
@@ -3670,7 +3674,9 @@ void PGStartEngine(const char *path, const char *filesRoot, PGLogCallback callba
 }
 
 #include <execinfo.h>
+#if !defined(__ANDROID__)
 #include <mach-o/dyld.h>
+#endif
 // The last indirect call that failed the fast check on this thread (Scripts/prepare_trap_context.py).
 static _Thread_local const char *indirectFunction;
 static _Thread_local uint32_t indirectIndex,indirectSize;
@@ -4315,7 +4321,12 @@ const char *pg_app_symbol(uintptr_t pc);
 void pg_record_trap(int code) {
   pg_invoke_top=NULL; // the trap leaves every invoke_* on this thread, so their jump points are gone
   void *frames[20];int count=backtrace(frames,20);char line[160];
-  snprintf(line,sizeof line,"Native trap %d; app image base %p",code,_dyld_get_image_header(0));pg_log(line);
+#if defined(__ANDROID__)
+  snprintf(line,sizeof line,"Native trap %d; Android image base unavailable",code);
+#else
+  snprintf(line,sizeof line,"Native trap %d; app image base %p",code,_dyld_get_image_header(0));
+#endif
+  pg_log(line);
   // Names the engine function (w2c_game_fN) for an invalid indirect call, which native frames can't do.
   if(code==WASM_RT_TRAP_CALL_INDIRECT&&indirectFunction){snprintf(line,sizeof line,"  indirect call in %s, table index %u of %u",indirectFunction,indirectIndex,indirectSize);pg_log(line);}
   for(int i=0;i<count;i++){snprintf(line,sizeof line,"  native frame %d: %p",i,frames[i]);pg_log(line);}
