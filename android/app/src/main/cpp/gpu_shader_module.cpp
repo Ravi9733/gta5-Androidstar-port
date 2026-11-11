@@ -1,5 +1,7 @@
 #include "gpu_shader_module.h"
 
+#include <utility>
+
 bool PGAndroidCreateShaderModule(
     VkDevice device, const uint32_t *spirv, size_t byteCount, VkShaderStageFlagBits stage,
     const PGAndroidShaderResource *resources, uint32_t resourceCount,
