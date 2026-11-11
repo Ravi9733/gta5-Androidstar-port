@@ -5,7 +5,7 @@
 
 class PGAndroidGpuResources {
 public:
-    explicit PGAndroidGpuResources(VkPhysicalDevice physical, VkDevice device);
+    PGAndroidGpuResources(VkPhysicalDevice physical, VkDevice device, VkQueue queue, uint32_t queueFamily);
     ~PGAndroidGpuResources();
     PGAndroidGpuResources(const PGAndroidGpuResources &) = delete;
     PGAndroidGpuResources &operator=(const PGAndroidGpuResources &) = delete;
@@ -13,6 +13,7 @@ public:
     bool createBuffer(const uint32_t *words, uint32_t wordCount);
     bool createTexture(const uint32_t *words, uint32_t wordCount);
     bool uploadBuffer(const uint32_t *words, uint32_t wordCount);
+    bool uploadTexture(const uint32_t *words, uint32_t wordCount);
     bool destroyObject(uint32_t objectId);
     void reset();
 
@@ -21,6 +22,10 @@ private:
         VkImage image = VK_NULL_HANDLE;
         VkImageView view = VK_NULL_HANDLE;
         VkDeviceMemory memory = VK_NULL_HANDLE;
+        uint32_t width = 0, height = 0, depth = 0, mipLevels = 0, layers = 0;
+        uint32_t dimension = 0, bind = 0;
+        VkFormat format = VK_FORMAT_UNDEFINED;
+        VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
     };
     struct BufferResource {
         VkBuffer buffer = VK_NULL_HANDLE;
@@ -33,6 +38,8 @@ private:
                             VkMemoryPropertyFlags preferred) const;
     VkPhysicalDevice physical_;
     VkDevice device_;
+    VkQueue queue_;
+    uint32_t queueFamily_;
     std::unordered_map<uint32_t, BufferResource> buffers_;
     std::unordered_map<uint32_t, TextureResource> textures_;
 };
