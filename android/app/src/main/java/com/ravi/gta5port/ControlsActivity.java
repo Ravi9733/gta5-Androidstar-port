@@ -242,7 +242,7 @@ public final class ControlsActivity extends Activity {
             if (key.startsWith(activeGroup + ".")) remove.add(key);
         }
         for (String key : remove) saved.remove(key);
-        saveLayout();
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(KEY_LAYOUT, saved.toString()).apply();
         showGroup();
     }
 
