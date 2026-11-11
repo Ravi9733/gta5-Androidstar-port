@@ -21,6 +21,7 @@ private:
         VkDeviceMemory memory = VK_NULL_HANDLE;
         void *mapped = nullptr;
         VkDeviceSize size = 0;
+        VkMemoryPropertyFlags memoryFlags = 0;
     };
     uint32_t findMemoryType(uint32_t bits, VkMemoryPropertyFlags required,
                             VkMemoryPropertyFlags preferred) const;
