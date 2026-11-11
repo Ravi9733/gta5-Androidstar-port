@@ -83,6 +83,7 @@ jobs:
 
       - name: Test Android shader binding packets
         run: python3 app/Scripts/test_android_gpu_bindings.py
+          python3 app/Scripts/test_android_gpu_packets.py
 
       - name: Test Android BC texture decoder
         run: |
