@@ -6,6 +6,7 @@
 #include <vulkan/vulkan.h>
 #include "gpu_resources.h"
 #include "gpu_descriptor_pool.h"
+#include "gpu_descriptor_writer.h"
 #include "gpu_binding_state.h"
 #include "PGAndroidGpuProtocol.h"
 
@@ -32,6 +33,7 @@ struct VulkanHost {
     VkDevice device = VK_NULL_HANDLE;
     std::unique_ptr<PGAndroidGpuResources> resources;
     std::unique_ptr<PGAndroidDescriptorPool> descriptorPool;
+    PGAndroidDescriptorWriter descriptorWriter;
     PGAndroidGpuBindingState bindings;
     VkQueue queue = VK_NULL_HANDLE;
     uint32_t queueFamily = UINT32_MAX;
@@ -570,4 +572,35 @@ extern "C" bool PGAndroidExecuteGpuPacket(uint32_t opcode, const uint32_t *words
 extern "C" bool PGAndroidGpuIsReady(void) {
     std::lock_guard<std::mutex> lock(host.mutex);
     return host.device != VK_NULL_HANDLE && host.resources != nullptr;
+}
+
+extern "C" bool PGAndroidCreateDescriptorSetLayout(
+    const PGAndroidDescriptorBinding *bindings, uint32_t count, VkDescriptorSetLayout *outLayout) {
+    std::lock_guard<std::mutex> lock(host.mutex);
+    if (!host.device || !outLayout || *outLayout != VK_NULL_HANDLE) return false;
+    return host.descriptorWriter.createSetLayout(host.device, bindings, count, *outLayout);
+}
+
+extern "C" bool PGAndroidAllocateDescriptorSet(
+    VkDescriptorSetLayout layout, VkDescriptorSet *outSet) {
+    std::lock_guard<std::mutex> lock(host.mutex);
+    if (!host.device || !host.descriptorPool || !outSet || *outSet != VK_NULL_HANDLE) return false;
+    return host.descriptorPool->allocate(layout, *outSet);
+}
+
+extern "C" bool PGAndroidUpdateDescriptorSet(
+    VkDescriptorSet set, const PGAndroidDescriptorBinding *bindings, uint32_t count) {
+    std::lock_guard<std::mutex> lock(host.mutex);
+    if (!host.device || !host.resources) return false;
+    return host.descriptorWriter.update(host.device, set, *host.resources, bindings, count);
+}
+
+extern "C" bool PGAndroidFreeDescriptorSet(VkDescriptorSet set) {
+    std::lock_guard<std::mutex> lock(host.mutex);
+    return host.descriptorPool && host.descriptorPool->free(set);
+}
+
+extern "C" void PGAndroidDestroyDescriptorSetLayout(VkDescriptorSetLayout layout) {
+    std::lock_guard<std::mutex> lock(host.mutex);
+    if (host.device && layout) vkDestroyDescriptorSetLayout(host.device, layout, nullptr);
 }
