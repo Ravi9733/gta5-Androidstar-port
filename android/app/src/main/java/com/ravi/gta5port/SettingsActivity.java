@@ -47,8 +47,7 @@ public final class SettingsActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(22), dp(18), dp(22), dp(18));
-        root.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-            new int[]{0xff182b48, 0xff080d1a, 0xff090d18, 0xff24172a}));
+        root.setBackground(PortTheme.poster(this, "posters/settings-bg-iphone.jpg"));
 
         Button back = new Button(this);
         back.setText("‹   Back");
