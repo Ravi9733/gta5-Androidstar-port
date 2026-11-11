@@ -62,7 +62,6 @@ bool supportsSwapchain(VkPhysicalDevice device) {
 void destroySwapchain() {
     if (host.device) {
         (void)vkDeviceWaitIdle(host.device);
-        host.resources.reset();
         for (VkFramebuffer framebuffer : host.framebuffers)
             if (framebuffer) vkDestroyFramebuffer(host.device, framebuffer, nullptr);
         host.framebuffers.clear();
@@ -81,6 +80,7 @@ void destroyLocked() {
     destroySwapchain();
     if (host.device) {
         (void)vkDeviceWaitIdle(host.device);
+        host.resources.reset();
         for (size_t i = 0; i < 2; ++i) {
             if (host.inFlight[i]) vkDestroyFence(host.device, host.inFlight[i], nullptr);
             if (host.imageAvailable[i]) vkDestroySemaphore(host.device, host.imageAvailable[i], nullptr);
