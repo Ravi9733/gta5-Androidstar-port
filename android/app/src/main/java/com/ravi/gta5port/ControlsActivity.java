@@ -123,8 +123,9 @@ public final class ControlsActivity extends Activity {
                 float[] pos = readPosition(item);
                 int size = activeGroup.equals("pad") ? dp(52) : dp(68);
                 FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(size, size);
+                item.view.setTag(pos);
                 stage.addView(control, lp);
-                place(item, pos[0], pos[1]);
+                control.post(() -> place(item, pos[0], pos[1]));
                 attachDrag(item);
                 items.add(item);
             }
