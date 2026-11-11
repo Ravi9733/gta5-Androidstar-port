@@ -714,14 +714,20 @@ bool PGAndroidGpuResources::getBufferViewDescriptor(uint32_t id,
 bool PGAndroidGpuResources::getAttachmentInfo(uint32_t viewId, bool depth,
     VkImageView &view, VkFormat &format, VkSampleCountFlagBits &samples) const {
     auto vi=views_.find(viewId);
-    if (vi==views_.end() || vi->second.bufferView || vi->second.unorderedAccess ||
-        vi->second.view==VK_NULL_HANDLE) return false;
-    auto ti=textures_.find(vi->second.resourceId);
-    if (ti==textures_.end()) return false;
+    auto ti=textures_.find(viewId);
+    VkImageView selectedView=VK_NULL_HANDLE;
+    if (vi!=views_.end()) {
+        if (vi->second.bufferView || vi->second.unorderedAccess || !vi->second.view) return false;
+        ti=textures_.find(vi->second.resourceId);
+        selectedView=vi->second.view;
+    } else if (ti!=textures_.end()) {
+        selectedView=ti->second.view;
+    }
+    if (ti==textures_.end() || !selectedView) return false;
     const TextureResource &texture=ti->second;
     if ((texture.bind & (depth ? 0x40u : 0x20u))==0 ||
         isDepthVkFormat(texture.format)!=depth) return false;
-    view=vi->second.view; format=texture.format; samples=texture.samples;
+    view=selectedView; format=texture.format; samples=texture.samples;
     return true;
 }
 
@@ -729,10 +735,16 @@ bool PGAndroidGpuResources::prepareAttachment(VkCommandBuffer commandBuffer, uin
     bool depth, VkImageView &view, VkFormat &format, VkSampleCountFlagBits &samples) {
     if (commandBuffer == VK_NULL_HANDLE) return false;
     auto vi=views_.find(viewId);
-    if (vi==views_.end() || vi->second.bufferView || vi->second.unorderedAccess ||
-        vi->second.view==VK_NULL_HANDLE) return false;
-    auto ti=textures_.find(vi->second.resourceId);
-    if (ti==textures_.end()) return false;
+    auto ti=textures_.find(viewId);
+    VkImageView selectedView=VK_NULL_HANDLE;
+    if (vi!=views_.end()) {
+        if (vi->second.bufferView || vi->second.unorderedAccess || !vi->second.view) return false;
+        ti=textures_.find(vi->second.resourceId);
+        selectedView=vi->second.view;
+    } else if (ti!=textures_.end()) {
+        selectedView=ti->second.view;
+    }
+    if (ti==textures_.end() || !selectedView) return false;
     TextureResource &texture=ti->second;
     const uint32_t required=depth ? 0x40u : 0x20u;
     if ((texture.bind & required)!=required || isDepthVkFormat(texture.format)!=depth)
@@ -765,7 +777,7 @@ bool PGAndroidGpuResources::prepareAttachment(VkCommandBuffer commandBuffer, uin
         VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT : VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     vkCmdPipelineBarrier(commandBuffer,srcStage,dstStage,0,0,nullptr,0,nullptr,1,&barrier);
     texture.layout=target;
-    view=vi->second.view;
+    view=selectedView;
     format=texture.format;
     samples=texture.samples;
     return true;
