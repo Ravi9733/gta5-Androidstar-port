@@ -104,4 +104,4 @@ int main() {
     assert(PGAndroidConsumeGpuRing(ring.data(), ring.size(), 72, &cursor, 4, &processed));
     assert(processed == 1 && cursor.tail == 72 && gExecutedPackets == beforeNop);
     return 0;
-n}
+}
