@@ -32,8 +32,12 @@ static void pg_mod_test_recheck(void);
 #include "NativeMemoryBudget.h"
 #if defined(__ANDROID__)
 #define PG_MINCORE_HELD(value) ((value) & 1)
+#define PG_MADV_FREE_REUSABLE MADV_DONTNEED
+#define PG_MADV_FREE_REUSE MADV_DONTNEED
 #else
 #define PG_MINCORE_HELD(value) ((value) & (MINCORE_INCORE | MINCORE_PAGED_OUT))
+#define PG_MADV_FREE_REUSABLE MADV_FREE_REUSABLE
+#define PG_MADV_FREE_REUSE MADV_FREE_REUSE
 #endif
 #if TARGET_OS_MACCATALYST
 #include <sys/sysctl.h>
@@ -267,7 +271,12 @@ uint64_t PGHeapReuseFailedBytes(void){return atomic_load(&heapReuseFailedBytes);
 // PG_HEAP_RETURN_SKIP_MESH=0 advises the whole range in one call as before (A/B). Returns the bytes advised.
 static uint64_t pg_advise_runs(uint64_t b,uint64_t e,int advice,uint64_t *failed){
  static int skipMesh=-1;if(skipMesh<0){const char *v=getenv("PG_HEAP_RETURN_SKIP_MESH");skipMesh=!(v&&atoi(v)==0);}
- const uint64_t page=16384;uint64_t done=0,run=b;
+#if defined(__ANDROID__)
+ long pageValue=sysconf(_SC_PAGESIZE);const uint64_t page=pageValue>0?(uint64_t)pageValue:4096;
+#else
+ const uint64_t page=16384;
+#endif
+ uint64_t done=0,run=b;
  for(uint64_t p=b;p<=e;p+=page){
   if(p<e&&!(skipMesh&&PGMeshPageHandedBack(p)))continue;
   if(p>run){if(madvise(env.memory.data+run,(size_t)(p-run),advice)==0)done+=p-run;else *failed+=p-run;}
@@ -294,7 +303,7 @@ void pg_buddy_free(w2c_game *instance,u64 allocator,u64 block){
  if(size<smallest||block+size>env.memory.size)return;
  uint64_t b=(block+page-1)&~(page-1),e=(block+size)&~(page-1);
  if(e<=b)return;
- uint64_t failed=0,returned=pg_advise_runs(b,e,MADV_FREE_REUSABLE,&failed);		// GTA-241: see pg_advise_runs
+ uint64_t failed=0,returned=pg_advise_runs(b,e,PG_MADV_FREE_REUSABLE,&failed);		// GTA-241: see pg_advise_runs
  if(returned){atomic_fetch_add(&heapReturnedBytes,returned);atomic_fetch_add(&heapReturnedBlocks,1);}
  if(failed){atomic_fetch_add(&heapReturnFailedBytes,failed);atomic_fetch_add(&heapReturnFailedBlocks,1);}
 }
@@ -307,7 +316,7 @@ void pg_buddy_allocated(w2c_game *instance,u64 block,u64 size){
  uint64_t b=block&~(page-1),e=(block+size+page-1)&~(page-1);
  if(e>env.memory.size)e=env.memory.size;
  uint64_t failed=0;
- if(e>b)pg_advise_runs(b,e,MADV_FREE_REUSE,&failed);		// GTA-241: see pg_advise_runs
+ if(e>b)pg_advise_runs(b,e,PG_MADV_FREE_REUSE,&failed);		// GTA-241: see pg_advise_runs
  if(failed)atomic_fetch_add(&heapReuseFailedBytes,failed);
 }
 // Defragment moves blocks without Allocate: the allocator's whole heap (base +8, size +24) in use first.
@@ -317,7 +326,7 @@ void pg_buddy_defragment(w2c_game *instance,u64 allocator){
  uint64_t base,size;memcpy(&base,env.memory.data+allocator+8,8);memcpy(&size,env.memory.data+allocator+24,8);
  if(!size||base+size>env.memory.size)return;
  const uint64_t page=16384;uint64_t failed=0;
- pg_advise_runs(base&~(page-1),(base+size+page-1)&~(page-1),MADV_FREE_REUSE,&failed);
+ pg_advise_runs(base&~(page-1),(base+size+page-1)&~(page-1),PG_MADV_FREE_REUSE,&failed);
  if(failed)atomic_fetch_add(&heapReuseFailedBytes,failed);
  static bool logged;if(!logged){logged=true;pg_log("Engine memory: the engine defragments a pool (marked in use first).");}
 }
