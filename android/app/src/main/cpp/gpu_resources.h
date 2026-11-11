@@ -20,6 +20,7 @@ public:
                              VkDescriptorBufferInfo &out, uint32_t requiredBind) const;
     bool getImageDescriptor(uint32_t viewId, VkDescriptorImageInfo &out,
                             bool unorderedAccess) const;
+    bool getSamplerDescriptor(uint32_t samplerId, VkDescriptorImageInfo &out) const;
     bool destroyObject(uint32_t objectId);
     void reset();
 
