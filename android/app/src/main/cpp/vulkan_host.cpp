@@ -35,6 +35,16 @@ bool check(VkResult result, const char *operation) {
     return false;
 }
 
+bool supportsSwapchain(VkPhysicalDevice device) {
+    uint32_t count = 0;
+    if (vkEnumerateDeviceExtensionProperties(device, nullptr, &count, nullptr) != VK_SUCCESS) return false;
+    std::vector<VkExtensionProperties> extensions(count);
+    if (vkEnumerateDeviceExtensionProperties(device, nullptr, &count, extensions.data()) != VK_SUCCESS) return false;
+    for (const auto &extension : extensions)
+        if (strcmp(extension.extensionName, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0) return true;
+    return false;
+}
+
 void destroySwapchain() {
     if (host.device && host.swapchain) vkDestroySwapchainKHR(host.device, host.swapchain, nullptr);
     host.swapchain = VK_NULL_HANDLE;
@@ -60,6 +70,10 @@ bool makeSwapchain(uint32_t requestedWidth, uint32_t requestedHeight) {
     VkSurfaceCapabilitiesKHR caps{};
     if (!check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(host.physical, host.surface, &caps),
                "vkGetPhysicalDeviceSurfaceCapabilitiesKHR")) return false;
+    if (!(caps.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)) {
+        LOGE("Surface does not support color-attachment swapchain images");
+        return false;
+    }
 
     uint32_t formatCount = 0;
     if (!check(vkGetPhysicalDeviceSurfaceFormatsKHR(host.physical, host.surface, &formatCount, nullptr),
@@ -97,7 +111,16 @@ bool makeSwapchain(uint32_t requestedWidth, uint32_t requestedHeight) {
     info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     info.preTransform = caps.currentTransform;
+    const VkCompositeAlphaFlagBitsKHR alphaModes[] = {
+        VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+        VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
+        VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
+        VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR
+    };
     info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    for (VkCompositeAlphaFlagBitsKHR alpha : alphaModes) {
+        if (caps.supportedCompositeAlpha & alpha) { info.compositeAlpha = alpha; break; }
+    }
     info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
     info.clipped = VK_TRUE;
     info.oldSwapchain = host.swapchain;
@@ -146,6 +169,7 @@ bool initialize(ANativeWindow *window) {
                "vkEnumeratePhysicalDevices")) return false;
 
     for (VkPhysicalDevice candidate : devices) {
+        if (!supportsSwapchain(candidate)) continue;
         uint32_t familyCount = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(candidate, &familyCount, nullptr);
         std::vector<VkQueueFamilyProperties> families(familyCount);
