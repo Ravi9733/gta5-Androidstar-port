@@ -13,8 +13,7 @@ bool PGAndroidRecordDraw(VkCommandBuffer commandBuffer,
     if (!commandBuffer || !pipeline.handle || pipeline.compute ||
         !layout.pipelineLayout || !layout.descriptorSet ||
         (!vertexBufferIds && vertexBufferCount) || (!vertexOffsets && vertexBufferCount) ||
-        vertexBufferCount > 16 || instanceCount == 0 ||
-        (!indexBufferId && vertexCount == 0)) return false;
+        vertexBufferCount == 0 || vertexBufferCount > 16 || instanceCount == 0) return false;
 
     std::vector<VkBuffer> buffers(vertexBufferCount);
     for (uint32_t i=0;i<vertexBufferCount;++i) {
@@ -28,18 +27,21 @@ bool PGAndroidRecordDraw(VkCommandBuffer commandBuffer,
         VkDeviceSize size=0;
         const VkDeviceSize elementSize=indexType==VK_INDEX_TYPE_UINT16 ? 2u :
                                        indexType==VK_INDEX_TYPE_UINT32 ? 4u : 0u;
-        if (!elementSize || (indexOffset % elementSize) ||
+        const uint64_t endIndex=static_cast<uint64_t>(firstVertexOrIndex)+indexCount;
+        if (!elementSize || indexCount == 0 || endIndex > UINT32_MAX ||
+            (indexOffset % elementSize) ||
             !resources.getBufferHandle(indexBufferId,0x02u,indexBuffer,size) ||
-            indexOffset > size || static_cast<VkDeviceSize>(indexCount) > (size-indexOffset)/elementSize) return false;
-    } else if (indexCount != 0) {
-        return false;
+            indexOffset > size ||
+            endIndex > (size-indexOffset)/elementSize) return false;
+    } else {
+        if (indexCount != 0 || vertexCount == 0 ||
+            static_cast<uint64_t>(firstVertexOrIndex)+vertexCount > UINT32_MAX) return false;
     }
 
     vkCmdBindPipeline(commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,pipeline.handle);
     vkCmdBindDescriptorSets(commandBuffer,VK_PIPELINE_BIND_POINT_GRAPHICS,
         layout.pipelineLayout,0,1,&layout.descriptorSet,0,nullptr);
-    if (!buffers.empty())
-        vkCmdBindVertexBuffers(commandBuffer,0,vertexBufferCount,buffers.data(),vertexOffsets);
+    vkCmdBindVertexBuffers(commandBuffer,0,vertexBufferCount,buffers.data(),vertexOffsets);
     if (indexBuffer) {
         vkCmdBindIndexBuffer(commandBuffer,indexBuffer,indexOffset,indexType);
         vkCmdDrawIndexed(commandBuffer,indexCount,instanceCount,firstVertexOrIndex,
