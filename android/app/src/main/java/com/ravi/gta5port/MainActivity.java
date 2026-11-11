@@ -315,7 +315,8 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         runtimeStatus.setText(folder + "\n" + vulkan
             + "\n• WASM engine: not connected"
             + "\n• Vulkan game renderer: not connected"
-            + "\n• Touch controls / audio: not connected"
+            + "\n• Gamepad mapping: added; engine link pending"
+            + "\n• Touch controls / gyro / audio: pending"
             + "\n\nGame files are not included. The selected folder is saved through Android's document provider.");
     }
 
