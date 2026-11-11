@@ -13,10 +13,10 @@ from pathlib import Path
 import re
 import sys
 
-OP_ENUM = re.compile(r"enum\\s+Op\\s*:\\s*uint32_t\\s*\\{(.*?)\\};", re.S)
-OP_ENTRY = re.compile(r"([A-Z][A-Z0-9_]*)\\s*=\\s*(0x[0-9a-fA-F]+|[0-9]+)")
-CONST = re.compile(r"static\\s+const\\s+uint32_t\\s+(BIND_[A-Z]+)\\s*=\\s*(0x[0-9a-fA-F]+|[0-9]+)")
-LAYOUT = re.compile(r"(k(?:ConstTableBuffer|ImmediateBuffer|FirstStorageBuffer|VertexBufferTop|ZeroVertexBuffer|UavTextureBase|NanClampBuffer))\\s*=\\s*(0x[0-9a-fA-F]+|[0-9]+)")
+OP_ENUM = re.compile(r"enum\s+Op\s*:\s*uint32_t\s*\{(.*?)\};", re.S)
+OP_ENTRY = re.compile(r"([A-Z][A-Z0-9_]*)\s*=\s*(0x[0-9a-fA-F]+|[0-9]+)")
+CONST = re.compile(r"static\s+const\s+uint32_t\s+(BIND_[A-Z]+)\s*=\s*(0x[0-9a-fA-F]+|[0-9]+)")
+LAYOUT = re.compile(r"(k(?:ConstTableBuffer|ImmediateBuffer|FirstStorageBuffer|VertexBufferTop|ZeroVertexBuffer|UavTextureBase|NanClampBuffer))\s*=\s*(0x[0-9a-fA-F]+|[0-9]+)")
 
 
 def parse_protocol(renderer_source: str, internal_header: str) -> dict:
@@ -77,7 +77,7 @@ def render_header(protocol: dict) -> str:
         "#endif",
         "",
     ]
-    return "\\n".join(lines)
+    return "\n".join(lines)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -93,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     for path in (args.json, args.header):
         path.parent.mkdir(parents=True, exist_ok=True)
-    args.json.write_text(json.dumps(protocol, indent=2) + "\\n", encoding="utf-8")
+    args.json.write_text(json.dumps(protocol, indent=2) + "\n", encoding="utf-8")
     args.header.write_text(render_header(protocol), encoding="utf-8")
     print(f'Extracted {len(protocol["opcodes"])} original GPU opcodes (0–{len(protocol["opcodes"])-1}).')
     print("Generated protocol data only; no Vulkan commands are executed by this step.")
