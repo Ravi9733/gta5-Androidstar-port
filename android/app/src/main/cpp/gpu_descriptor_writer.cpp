@@ -84,10 +84,10 @@ bool PGAndroidDescriptorWriter::update(
                 VkDescriptorBufferInfo info{};
                 // A reflected storage buffer may be read-only (SRV) or writable (UAV).
                 // Resolve either legal D3D bind capability without requiring both flags.
-                if (!resources.getBufferDescriptor(binding.resourceId, binding.offset, binding.range,
-                                                    info, 0x08u) &&
-                    !resources.getBufferDescriptor(binding.resourceId, binding.offset, binding.range,
-                                                    info, 0x80u)) return false;
+                // Storage resources in the original iOS renderer bind through D3D
+                // buffer SRV/UAV view IDs, not directly through the backing buffer ID.
+                if (!resources.getBufferViewDescriptor(binding.resourceId, info, false) &&
+                    !resources.getBufferViewDescriptor(binding.resourceId, info, true)) return false;
                 bufferInfos.push_back(info);
                 write.pBufferInfo = &bufferInfos.back();
                 break;
