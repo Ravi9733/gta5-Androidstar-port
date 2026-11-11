@@ -11,7 +11,7 @@ with TemporaryDirectory() as tmp:
     (src/"index.json").write_text(json.dumps({"0123456789abcdef":{"ok":True,"stage":"vs"},"bad":{"ok":False,"stage":"ps"}}))
     (src/"0123456789abcdef.wgsl").write_text("@vertex fn main() -> @builtin(position) vec4f { return vec4f(0.0); }")
     fake=root/"naga"
-    fake.write_text("#!/usr/bin/env python3\\nimport pathlib,struct,sys\\nout=pathlib.Path(sys.argv[2]); out.write_bytes(struct.pack('<5I',0x07230203,0x00010000,0,1,0))\\n")
+    fake.write_text("#!/usr/bin/env python3\nimport pathlib,struct,sys\nout=pathlib.Path(sys.argv[2]); out.write_bytes(struct.pack('<5I',0x07230203,0x00010000,0,1,0))\n")
     fake.chmod(0o755)
     result=module.compile_inventory(src,out,str(fake))
     assert result["format"]==2 and result["shader_count"]==1
