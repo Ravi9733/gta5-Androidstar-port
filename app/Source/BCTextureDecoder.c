@@ -3,7 +3,11 @@
 #include <string.h>
 #define BCDEC_STATIC
 #define BCDEC_IMPLEMENTATION
+#if defined(PG_ANDROID_BUILD)
+#include "bcdec.h"
+#else
 #include "../Tools/bcdec/bcdec.h"
+#endif
 #include "BCTextureDecoderReference.inc"
 
 static void decodeBlock(int format,const void *compressed,void *destination,int pitch){
