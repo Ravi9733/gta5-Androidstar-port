@@ -525,6 +525,8 @@ extern "C" bool PGAndroidExecuteGpuPacket(uint32_t opcode, const uint32_t *words
         case PG_ANDROID_OP_INIT:
             host.bindings.clear();
             return true;
+        case PG_ANDROID_OP_CREATE_STATE:
+            return host.resources->createSamplerState(words, wordCount);
         case PG_ANDROID_OP_CREATE_TEXTURE:
             return host.resources->createTexture(words, wordCount);
         case PG_ANDROID_OP_CREATE_SRV:
