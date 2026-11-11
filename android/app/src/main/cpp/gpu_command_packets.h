@@ -12,8 +12,8 @@ enum PGAndroidDrawKind : uint32_t {
 };
 
 struct PGAndroidDrawPacket {
-    uint32_t kind=0, countOrArgumentBuffer=0, instanceCount=0;
-    uint32_t startOrArgumentOffset=0;
+    uint32_t kind=0, countOrArgumentBuffer=0, instanceCountOrArgumentOffset=0;
+    uint32_t startVertexOrIndex=0;
     int32_t baseVertex=0;
     uint32_t startInstance=0;
 };
@@ -27,12 +27,14 @@ inline bool PGAndroidDecodeDrawPacket(const uint32_t *words, uint32_t wordCount,
     decoded.kind=words[0];
     decoded.countOrArgumentBuffer=words[1];
     decoded.instanceCount=words[2];
-    decoded.startOrArgumentOffset=words[3];
+    decoded.startVertexOrIndex=words[3];
     decoded.baseVertex=static_cast<int32_t>(words[4]);
     decoded.startInstance=words[5];
     if (decoded.kind >= PG_ANDROID_DRAW_INDEXED_INDIRECT) {
-        if (decoded.countOrArgumentBuffer==0 || (decoded.startOrArgumentOffset & 3u))
-            return false;
+        // Original MRRenderer.mm reads p[1] as the argument buffer and p[2]
+        // as its byte offset for both indirect draw variants.
+        if (decoded.countOrArgumentBuffer==0 ||
+            (decoded.instanceCountOrArgumentOffset & 3u)) return false;
     }
     out=decoded;
     return true;
