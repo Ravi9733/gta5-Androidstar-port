@@ -129,8 +129,10 @@ bool isDepthVkFormat(VkFormat format) {
 }
 
 PGAndroidGpuResources::PGAndroidGpuResources(VkPhysicalDevice physical, VkDevice device,
-                                                   VkQueue queue, uint32_t queueFamily)
-    : physical_(physical), device_(device), queue_(queue), queueFamily_(queueFamily) {}
+                                                   VkQueue queue, uint32_t queueFamily,
+                                                   bool textureCompressionBC)
+    : physical_(physical), device_(device), queue_(queue), queueFamily_(queueFamily),
+      textureCompressionBC_(textureCompressionBC) {}
 
 PGAndroidGpuResources::~PGAndroidGpuResources() { reset(); }
 
@@ -228,7 +230,10 @@ bool PGAndroidGpuResources::createTexture(const uint32_t *p, uint32_t n) {
     if (usage & VK_IMAGE_USAGE_STORAGE_BIT) required |= VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT;
     VkFormatProperties formatProperties{};
     vkGetPhysicalDeviceFormatProperties(physical_, format, &formatProperties);
+    FormatBlock sourceBlock{};
+    const bool compressedFormat = formatBlock(format, sourceBlock) && sourceBlock.width == 4 && sourceBlock.height == 4;
     bool decodeBC=false;
+    if (compressedFormat && !textureCompressionBC_) formatProperties.optimalTilingFeatures = 0;
     const uint32_t bcFormat=bcDecoderFormat(dxgi);
     if ((formatProperties.optimalTilingFeatures & required) != required) {
         if (!bcFormat) return false;
