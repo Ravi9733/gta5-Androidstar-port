@@ -4,6 +4,7 @@
 
 #include <vulkan/vulkan.h>
 #include <cstdint>
+#include <cstddef>
 #include <vector>
 
 struct PGAndroidShaderModule {
