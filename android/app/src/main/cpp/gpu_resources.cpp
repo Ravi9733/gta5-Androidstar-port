@@ -532,7 +532,7 @@ bool PGAndroidGpuResources::createTextureView(const uint32_t *p, uint32_t n, boo
         case 2: // D2Array
             if (texture.dimension != 2) return false;
             type=VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-            layerCount=finalWord ? std::min(finalWord, texture.layers-firstLayer) : texture.layers-firstLayer;
+            layerCount=(!unorderedAccess && finalWord) ? std::min(finalWord, texture.layers-firstLayer) : texture.layers-firstLayer;
             break;
         case 3: // D3
             if (texture.dimension != 3) return false;
@@ -547,7 +547,7 @@ bool PGAndroidGpuResources::createTextureView(const uint32_t *p, uint32_t n, boo
         case 5: // CubeArray; SRV count is in cubes, UAV has no explicit count
             if (texture.dimension != 2 || texture.layers < 6 || (texture.layers % 6u)) return false;
             type=VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
-            layerCount=finalWord ? finalWord*6u : texture.layers-firstLayer;
+            layerCount=(!unorderedAccess && finalWord) ? finalWord*6u : texture.layers-firstLayer;
             break;
         default:
             return false;
