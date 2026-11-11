@@ -5,6 +5,7 @@
 #include <android/log.h>
 #include <vulkan/vulkan.h>
 #include "gpu_resources.h"
+#include "gpu_binding_state.h"
 #include "PGAndroidGpuProtocol.h"
 
 #include <algorithm>
@@ -29,6 +30,7 @@ struct VulkanHost {
     VkPhysicalDevice physical = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;
     std::unique_ptr<PGAndroidGpuResources> resources;
+    PGAndroidGpuBindingState bindings;
     VkQueue queue = VK_NULL_HANDLE;
     uint32_t queueFamily = UINT32_MAX;
     VkSwapchainKHR swapchain = VK_NULL_HANDLE;
@@ -521,6 +523,7 @@ extern "C" bool PGAndroidExecuteGpuPacket(uint32_t opcode, const uint32_t *words
     if (!host.device || !host.resources || (!words && wordCount)) return false;
     switch (opcode) {
         case PG_ANDROID_OP_INIT:
+            host.bindings.clear();
             return true;
         case PG_ANDROID_OP_CREATE_TEXTURE:
             return host.resources->createTexture(words, wordCount);
@@ -537,6 +540,17 @@ extern "C" bool PGAndroidExecuteGpuPacket(uint32_t opcode, const uint32_t *words
             return host.resources->uploadBuffer(words, wordCount);
         case PG_ANDROID_OP_DESTROY_OBJECT:
             return wordCount >= 1 && host.resources->destroyObject(words[0]);
+        case PG_ANDROID_OP_SET_CBUFFERS:
+            return host.bindings.setConstantBuffers(words, wordCount);
+        case PG_ANDROID_OP_SET_SRVS:
+            return host.bindings.setShaderResources(words, wordCount);
+        case PG_ANDROID_OP_SET_SAMPLERS:
+            return host.bindings.setSamplers(words, wordCount);
+        case PG_ANDROID_OP_SET_UAVS:
+            return host.bindings.setUnorderedAccess(words, wordCount);
+        case PG_ANDROID_OP_CLEAR_STATE:
+            host.bindings.clear();
+            return true;
         default:
             return false; // Unsupported opcodes are never silently treated as rendered.
     }
