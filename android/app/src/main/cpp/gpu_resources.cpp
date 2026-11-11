@@ -677,6 +677,17 @@ bool PGAndroidGpuResources::getImageDescriptor(uint32_t id,
     return true;
 }
 
+bool PGAndroidGpuResources::getSamplerDescriptor(uint32_t samplerId,
+                                                           VkDescriptorImageInfo &out) const {
+    const auto it = samplers_.find(samplerId);
+    if (it == samplers_.end() || it->second == VK_NULL_HANDLE) return false;
+    out = {};
+    out.sampler = it->second;
+    out.imageView = VK_NULL_HANDLE;
+    out.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    return true;
+}
+
 bool PGAndroidGpuResources::destroyObject(uint32_t id) {
     const auto samplerIt = samplers_.find(id);
     if (samplerIt != samplers_.end()) {
