@@ -510,6 +510,8 @@ extern "C" bool PGAndroidExecuteGpuPacket(uint32_t opcode, const uint32_t *words
     std::lock_guard<std::mutex> lock(host.mutex);
     if (!host.device || !host.resources || (!words && wordCount)) return false;
     switch (opcode) {
+        case PG_ANDROID_OP_INIT:
+            return true;
         case PG_ANDROID_OP_CREATE_BUFFER:
             return host.resources->createBuffer(words, wordCount);
         case PG_ANDROID_OP_UPLOAD_BUFFER:
@@ -520,4 +522,10 @@ extern "C" bool PGAndroidExecuteGpuPacket(uint32_t opcode, const uint32_t *words
         default:
             return false; // Unsupported opcodes are never silently treated as rendered.
     }
+}
+
+
+extern "C" bool PGAndroidGpuIsReady(void) {
+    std::lock_guard<std::mutex> lock(host.mutex);
+    return host.device != VK_NULL_HANDLE && host.resources != nullptr;
 }
