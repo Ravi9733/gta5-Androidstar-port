@@ -5,6 +5,7 @@
 #include <android/log.h>
 #include <vulkan/vulkan.h>
 #include "gpu_resources.h"
+#include "gpu_descriptor_pool.h"
 #include "gpu_binding_state.h"
 #include "PGAndroidGpuProtocol.h"
 
@@ -30,6 +31,7 @@ struct VulkanHost {
     VkPhysicalDevice physical = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;
     std::unique_ptr<PGAndroidGpuResources> resources;
+    std::unique_ptr<PGAndroidDescriptorPool> descriptorPool;
     PGAndroidGpuBindingState bindings;
     VkQueue queue = VK_NULL_HANDLE;
     uint32_t queueFamily = UINT32_MAX;
@@ -85,6 +87,7 @@ void destroyLocked() {
     destroySwapchain();
     if (host.device) {
         (void)vkDeviceWaitIdle(host.device);
+        host.descriptorPool.reset();
         host.resources.reset();
         for (size_t i = 0; i < 2; ++i) {
             if (host.inFlight[i]) vkDestroyFence(host.device, host.inFlight[i], nullptr);
@@ -340,6 +343,11 @@ bool initialize(ANativeWindow *window) {
     vkGetDeviceQueue(host.device, host.queueFamily, 0, &host.queue);
     host.resources = std::make_unique<PGAndroidGpuResources>(host.physical, host.device, host.queue, host.queueFamily,
             supportedFeatures.textureCompressionBC == VK_TRUE);
+    host.descriptorPool = std::make_unique<PGAndroidDescriptorPool>();
+    if (!host.descriptorPool->initialize(host.device, 64, 64)) {
+        LOGE("Failed to initialize Vulkan descriptor pool");
+        return false;
+    }
 
     VkCommandPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     poolInfo.queueFamilyIndex = host.queueFamily;
