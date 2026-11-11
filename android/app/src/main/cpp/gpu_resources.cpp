@@ -581,6 +581,35 @@ bool PGAndroidGpuResources::createTextureView(const uint32_t *p, uint32_t n, boo
     return true;
 }
 
+
+bool PGAndroidGpuResources::getBufferDescriptor(uint32_t id, VkDeviceSize offset,
+                                                 VkDeviceSize range,
+                                                 VkDescriptorBufferInfo &out) const {
+    const auto it = buffers_.find(id);
+    if (it == buffers_.end() || offset >= it->second.size) return false;
+    const VkDeviceSize available = it->second.size - offset;
+    const VkDeviceSize resolvedRange = range == VK_WHOLE_SIZE ? available : range;
+    if (!resolvedRange || resolvedRange > available) return false;
+    out = {};
+    out.buffer = it->second.buffer;
+    out.offset = offset;
+    out.range = resolvedRange;
+    return out.buffer != VK_NULL_HANDLE;
+}
+
+bool PGAndroidGpuResources::getImageDescriptor(uint32_t id,
+                                                VkDescriptorImageInfo &out) const {
+    const auto it = views_.find(id);
+    if (it == views_.end() || !it->second.view) return false;
+    const auto texture = textures_.find(it->second.resourceId);
+    if (texture == textures_.end()) return false;
+    out = {};
+    out.imageView = it->second.view;
+    out.imageLayout = it->second.unorderedAccess
+        ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    return true;
+}
+
 bool PGAndroidGpuResources::destroyObject(uint32_t id) {
     const auto viewIt = views_.find(id);
     if (viewIt != views_.end()) {
