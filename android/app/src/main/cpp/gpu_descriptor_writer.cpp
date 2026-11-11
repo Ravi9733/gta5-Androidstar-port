@@ -41,8 +41,12 @@ bool PGAndroidDescriptorWriter::update(
             case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
             case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC: {
                 VkDescriptorBufferInfo info{};
+                // A reflected storage buffer may be read-only (SRV) or writable (UAV).
+                // Resolve either legal D3D bind capability without requiring both flags.
                 if (!resources.getBufferDescriptor(binding.resourceId, binding.offset, binding.range,
-                                                     info, 0x08u | 0x80u)) return false;
+                                                    info, 0x08u) &&
+                    !resources.getBufferDescriptor(binding.resourceId, binding.offset, binding.range,
+                                                    info, 0x80u)) return false;
                 bufferInfos.push_back(info);
                 write.pBufferInfo = &bufferInfos.back();
                 break;
