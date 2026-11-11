@@ -4327,7 +4327,7 @@ static void pg_d3d_lazy_report(void){
 }
 void pg_note_call_indirect(const char *function,uint32_t index,uint32_t size){indirectFunction=function;indirectIndex=index;indirectSize=size;}
 const char *pg_app_symbol(uintptr_t pc);
-void pg_record_trap(int code) {
+void pg_record_trap(wasm_rt_trap_t code) {
   pg_invoke_top=NULL; // the trap leaves every invoke_* on this thread, so their jump points are gone
   void *frames[20];int count=backtrace(frames,20);char line[160];
 #if defined(__ANDROID__)
