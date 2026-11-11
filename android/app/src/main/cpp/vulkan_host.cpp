@@ -5,6 +5,7 @@
 #include <android/log.h>
 #include <vulkan/vulkan.h>
 #include "gpu_resources.h"
+#include "PGAndroidGpuProtocol.h"
 
 #include <algorithm>
 #include <cstdint>
