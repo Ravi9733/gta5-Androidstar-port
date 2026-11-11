@@ -141,7 +141,7 @@ public final class SettingsActivity extends Activity {
         resolutionValue.setText((50 + resolution.getProgress()) + "%");
         sharperSwitch.setChecked(prefs.getBoolean("sharperUpscaling", false));
         memoryCap.setText(String.valueOf(prefs.getInt("memoryCapMB", 0)));
-        touchSpinner.setSelection("buttons".equals(prefs.getString("touchScheme", "situational")) ? 1 : 0);
+        touchSpinner.setSelection("controller".equals(prefs.getString("touchScheme", "situational")) ? 1 : 0);
     }
 
     private void saveSettings() {
@@ -150,7 +150,7 @@ public final class SettingsActivity extends Activity {
         int cap = 0;
         try { cap = Math.max(0, Integer.parseInt(memoryCap.getText().toString().trim())); }
         catch (NumberFormatException ignored) {}
-        String touch = touchSpinner.getSelectedItemPosition() == 1 ? "buttons" : "situational";
+        String touch = touchSpinner.getSelectedItemPosition() == 1 ? "controller" : "situational";
         getSharedPreferences(PREFS, MODE_PRIVATE).edit()
             .putInt("graphicsPreset", preset)
             .putInt("frameRateCap", fps)
