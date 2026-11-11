@@ -70,10 +70,7 @@ extern "C" int PGAndroidConsumeGpuRing(
             PGAndroidGpuRingRead(ring, ringSize, head, cursor, &packet);
         if (result == PG_ANDROID_RING_EMPTY) return 1;
         if (result == PG_ANDROID_RING_CORRUPT) return 0;
-        if (result == PG_ANDROID_RING_WRAP) {
-            ++*processed;
-            continue;
-        }
+        if (result == PG_ANDROID_RING_WRAP) continue;
         if (packet.opcode != PG_ANDROID_OP_NOP &&
             !PGAndroidExecuteGpuPacket(packet.opcode, packet.words, packet.word_count))
             return 0; // Keep tail on unsupported/failed work; never drop game commands.
