@@ -67,6 +67,15 @@ static uint64_t pg_android_read_number(const char *path) {
   unsigned long long parsed = strtoull(value, &end, 10);
   return end == value ? 0 : (uint64_t)parsed;
 }
+static uint64_t pg_android_process_limit(void) {
+  uint64_t limit = pg_android_read_number("/sys/fs/cgroup/memory.max");
+  if (!limit || limit >= (1ull << 60))
+    limit = pg_android_read_number("/sys/fs/cgroup/memory/memory.limit_in_bytes");
+  if (limit && limit < (1ull << 60)) return limit;
+  struct sysinfo info;
+  if (sysinfo(&info) == 0) return (uint64_t)info.totalram * info.mem_unit;
+  return 0;
+}
 static bool pg_android_cgroup_headroom(uint64_t *headroom) {
   uint64_t limit = pg_android_read_number("/sys/fs/cgroup/memory.max");
   uint64_t used = pg_android_read_number("/sys/fs/cgroup/memory.current");
@@ -667,7 +676,19 @@ void PGSetMemoryCap(int mb) { if (!atomic_load(&started)) memoryCapMB = mb > 0 ?
 static uint64_t pg_engine_memory_mb(void){
  const char *configured=getenv("PG_ENGINE_MEMORY_MB");
  if(configured){long mb=atol(configured);if(mb>=1024&&mb<=8192)return (uint64_t)mb;}
-#if !TARGET_OS_SIMULATOR && !defined(__ANDROID__)
+#if defined(__ANDROID__)
+ uint64_t limitBytes=pg_android_process_limit();
+ if(limitBytes){
+  uint64_t limitMB=limitBytes>>20;
+  if(memoryCapMB&&memoryCapMB<limitMB){
+   capReserveBytes=(limitMB-memoryCapMB)<<20;
+   char line[112];snprintf(line,sizeof line,"Android memory cap: %llu MB of the %llu MB process limit.",(unsigned long long)memoryCapMB,(unsigned long long)limitMB);pg_log(line);
+   limitMB=memoryCapMB;
+  }
+  processLimitMB=limitMB;
+  if(limitMB>4095+1024)return limitMB-1024<7168?limitMB-1024:7168;
+ }
+#elif !TARGET_OS_SIMULATOR
  task_vm_info_data_t info={};mach_msg_type_number_t count=TASK_VM_INFO_COUNT;
  if(task_info(mach_task_self(),TASK_VM_INFO,(task_info_t)&info,&count)==KERN_SUCCESS){
   uint64_t limitMB=(PGProcessAvailableMemory()+info.phys_footprint)>>20;
