@@ -10,6 +10,23 @@
 #include <limits.h>
 #include <pthread.h>
 
+#if defined(__APPLE__)
+#define PG_STAT_ATIME_SEC(s) ((s)->st_atimespec.tv_sec)
+#define PG_STAT_ATIME_NSEC(s) ((s)->st_atimespec.tv_nsec)
+#define PG_STAT_MTIME_SEC(s) ((s)->st_mtimespec.tv_sec)
+#define PG_STAT_MTIME_NSEC(s) ((s)->st_mtimespec.tv_nsec)
+#define PG_STAT_CTIME_SEC(s) ((s)->st_ctimespec.tv_sec)
+#define PG_STAT_CTIME_NSEC(s) ((s)->st_ctimespec.tv_nsec)
+#else
+// Android bionic and Linux expose POSIX.1-2008 st_*tim fields.
+#define PG_STAT_ATIME_SEC(s) ((s)->st_atim.tv_sec)
+#define PG_STAT_ATIME_NSEC(s) ((s)->st_atim.tv_nsec)
+#define PG_STAT_MTIME_SEC(s) ((s)->st_mtim.tv_sec)
+#define PG_STAT_MTIME_NSEC(s) ((s)->st_mtim.tv_nsec)
+#define PG_STAT_CTIME_SEC(s) ((s)->st_ctim.tv_sec)
+#define PG_STAT_CTIME_NSEC(s) ((s)->st_ctim.tv_nsec)
+#endif
+
 #define PG_FDS 512
 static struct { int native; DIR *dir; uint64_t position; char path[PATH_MAX]; } descriptors[PG_FDS];
 static pthread_mutex_t filesLock = PTHREAD_MUTEX_INITIALIZER;
@@ -88,9 +105,9 @@ static void writeStat(struct w2c_env *host,u64 at,const struct stat *s) {
   STORE(u32,0,s->st_dev);STORE(u32,4,s->st_mode);STORE(u64,8,s->st_nlink);
   STORE(u32,16,s->st_uid);STORE(u32,20,s->st_gid);STORE(u32,24,s->st_rdev);
   STORE(int64_t,32,s->st_size);STORE(u32,40,s->st_blksize);STORE(u32,44,s->st_blocks);
-  STORE(int64_t,48,s->st_atimespec.tv_sec);STORE(u64,56,s->st_atimespec.tv_nsec);
-  STORE(int64_t,64,s->st_mtimespec.tv_sec);STORE(u64,72,s->st_mtimespec.tv_nsec);
-  STORE(int64_t,80,s->st_ctimespec.tv_sec);STORE(u64,88,s->st_ctimespec.tv_nsec);STORE(u64,96,s->st_ino);
+  STORE(int64_t,48,PG_STAT_ATIME_SEC(s));STORE(u64,56,PG_STAT_ATIME_NSEC(s));
+  STORE(int64_t,64,PG_STAT_MTIME_SEC(s));STORE(u64,72,PG_STAT_MTIME_NSEC(s));
+  STORE(int64_t,80,PG_STAT_CTIME_SEC(s));STORE(u64,88,PG_STAT_CTIME_NSEC(s));STORE(u64,96,s->st_ino);
 #undef STORE
 }
 u32 w2c_env_0x5F_syscall_fstat64(struct w2c_env *h,u32 fd,u64 out){struct stat s;int n=nativeFD(fd);if(n<0||fstat(n,&s)<0)return failure();writeStat(h,out,&s);return 0;}
