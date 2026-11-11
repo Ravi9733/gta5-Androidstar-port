@@ -711,6 +711,20 @@ bool PGAndroidGpuResources::getBufferViewDescriptor(uint32_t id,
     return out.buffer != VK_NULL_HANDLE;
 }
 
+bool PGAndroidGpuResources::getAttachmentInfo(uint32_t viewId, bool depth,
+    VkImageView &view, VkFormat &format, VkSampleCountFlagBits &samples) const {
+    auto vi=views_.find(viewId);
+    if (vi==views_.end() || vi->second.bufferView || vi->second.unorderedAccess ||
+        vi->second.view==VK_NULL_HANDLE) return false;
+    auto ti=textures_.find(vi->second.resourceId);
+    if (ti==textures_.end()) return false;
+    const TextureResource &texture=ti->second;
+    if ((texture.bind & (depth ? 0x40u : 0x20u))==0 ||
+        isDepthVkFormat(texture.format)!=depth) return false;
+    view=vi->second.view; format=texture.format; samples=texture.samples;
+    return true;
+}
+
 bool PGAndroidGpuResources::prepareAttachment(VkCommandBuffer commandBuffer, uint32_t viewId,
     bool depth, VkImageView &view, VkFormat &format, VkSampleCountFlagBits &samples) {
     if (commandBuffer == VK_NULL_HANDLE) return false;
