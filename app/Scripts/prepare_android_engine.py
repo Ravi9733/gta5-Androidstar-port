@@ -41,9 +41,17 @@ def install_trap_callback(runtime_path: Path | str) -> None:
 
     # Keep the callback inside wasm_rt_trap and before abort(), preserving the
     # runtime's existing trap/termination semantics.
+    # The generated WABT runtime is C; declare the Android host callback before
+    # the first call so strict C11 compilers do not reject an implicit function.
+    declaration = "void pg_record_trap(wasm_rt_trap_t code);\\n"
+    if "pg_record_trap(wasm_rt_trap_t code);" not in source:
+        source = source[: match.start()] + declaration + source[match.start() :]
+        match = _TRAP_SIGNATURE.search(source)
+        assert match is not None
+
     opening_brace = match.end() - 1
     insertion = (
-        "\n"
+        "\\n"
         f"{match.group('indent')}  pg_record_trap(code);"
     )
     patched = source[: opening_brace + 1] + insertion + source[opening_brace + 1 :]
