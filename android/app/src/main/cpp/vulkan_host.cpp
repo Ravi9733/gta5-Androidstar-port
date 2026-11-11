@@ -553,6 +553,16 @@ extern "C" bool PGAndroidExecuteGpuPacket(uint32_t opcode, const uint32_t *words
             return host.resources->uploadBuffer(words, wordCount);
         case PG_ANDROID_OP_DESTROY_OBJECT:
             return wordCount >= 1 && host.resources->destroyObject(words[0]);
+        case PG_ANDROID_OP_SET_SHADER:
+            return host.bindings.setShader(words, wordCount);
+        case PG_ANDROID_OP_SET_INPUT_LAYOUT:
+            return host.bindings.setInputLayout(words, wordCount);
+        case PG_ANDROID_OP_SET_TOPOLOGY:
+            return host.bindings.setTopology(words, wordCount);
+        case PG_ANDROID_OP_SET_VERTEX_BUFFERS:
+            return host.bindings.setVertexBuffers(words, wordCount);
+        case PG_ANDROID_OP_SET_INDEX_BUFFER:
+            return host.bindings.setIndexBuffer(words, wordCount);
         case PG_ANDROID_OP_SET_CBUFFERS:
             return host.bindings.setConstantBuffers(words, wordCount);
         case PG_ANDROID_OP_SET_SRVS:
