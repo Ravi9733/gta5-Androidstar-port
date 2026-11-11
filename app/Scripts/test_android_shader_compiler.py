@@ -18,8 +18,29 @@ with TemporaryDirectory() as tmp:
     binary=(out/"0123456789abcdef.spv").read_bytes()
     assert binary[:4]==struct.pack("<I",0x07230203)
     entry=json.loads((out/"manifest.json").read_text())["shaders"][0]
-    assert entry["hash"]=="0123456789abcdef" and entry["stage"]=="vs"
+    assert entry["id"]=="0123456789abcdef" and entry["original_hash"] is None
+    assert entry["stage"]=="vs"
     assert entry["sha256"]==hashlib.sha256(binary).hexdigest()
+
+    # Shader IDs are not assumed to be original iOS 64-bit hashes.
+    (src/"index.json").write_text(json.dumps({
+        "game_vertex_01":{"ok":True,"stage":"vs","original_hash":"ABCDEF0123456789"}
+    }))
+    (src/"game_vertex_01.wgsl").write_text("@vertex fn main() -> @builtin(position) vec4f { return vec4f(0.0); }")
+    result=module.compile_inventory(src,out,str(fake))
+    entry=json.loads((out/"manifest.json").read_text())["shaders"][0]
+    assert entry["id"]=="game_vertex_01"
+    assert entry["original_hash"]=="abcdef0123456789"
+
+    (src/"index.json").write_text(json.dumps({
+        "game_vertex_01":{"ok":True,"stage":"vs","original_hash":"not-a-hash"}
+    }))
+    try:
+        module.compile_inventory(src,out,str(fake))
+    except SystemExit as error:
+        assert "Invalid original iOS shader hash" in str(error)
+    else:
+        raise AssertionError("Invalid original shader hash was accepted")
 
     (src/"index.json").write_text(json.dumps({"../escape":{"ok":True,"stage":"vs"}}))
     try:
