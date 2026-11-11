@@ -57,6 +57,7 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
 
     private static native boolean nativeCreate(Surface surface);
     private static native boolean nativeResize(int width, int height);
+    private static native boolean nativeRenderFrame();
     private static native void nativeDestroy();
     private static native void nativeUpdateController(float leftX, float leftY, float rightX, float rightY,
         float leftTrigger, float rightTrigger, int buttons, int lookDX, int lookDY, double elapsedSeconds);
@@ -415,15 +416,17 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
         nativeReady = nativeCreate(holder.getSurface());
+        boolean framePresented = nativeReady && nativeRenderFrame();
         refreshRuntimeStatus();
         if (status != null) status.setText(nativeReady
-            ? "Vulkan surface initialized · renderer integration pending"
+            ? (framePresented ? "Vulkan clear-pass presented · game renderer integration pending"
+                : "Vulkan initialized · first frame presentation failed")
             : "Vulkan initialization unavailable on this device");
     }
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-        if (nativeReady && !nativeResize(width, height)) {
+        if (nativeReady && (!nativeResize(width, height) || !nativeRenderFrame())) {
             nativeReady = false;
             refreshRuntimeStatus();
             if (status != null) status.setText("Vulkan surface resize failed");
