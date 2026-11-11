@@ -49,7 +49,7 @@ def main():
         binary=tmp_path/"bc_decoder_test"
         harness.write_text(HARNESS)
         subprocess.run([
-            "cc","-std=c11","-Wall","-Wextra","-Werror",
+            "cc","-std=c11","-Wall","-Wextra","-Werror","-Wno-unused-function",
             "-DPG_ANDROID_BUILD=1",
             "-I",str(pathlib.Path(args.header).resolve().parent),
             "-I",str(source.resolve()),
