@@ -48,7 +48,7 @@ public final class SettingsActivity extends Activity {
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(22), dp(18), dp(22), dp(18));
         root.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-            new int[]{0xff0a1220, 0xff050911, 0xff0d131f}));
+            new int[]{0xff182b48, 0xff080d1a, 0xff090d18, 0xff24172a}));
 
         Button back = new Button(this);
         back.setText("‹   Back");
@@ -110,7 +110,7 @@ public final class SettingsActivity extends Activity {
         memoryCap.setSingleLine(true);
         memoryCap.setInputType(InputType.TYPE_CLASS_NUMBER);
         memoryCap.setHint("0 = automatic memory limit (MB)");
-        memoryCap.setHintTextColor(0xff8e9bb0);
+        memoryCap.setHintTextColor(PortTheme.TERTIARY);
         memoryCap.setTextColor(Color.WHITE);
         memoryCap.setBackground(panel());
         memoryCap.setPadding(dp(12), 0, dp(12), 0);
@@ -120,7 +120,7 @@ public final class SettingsActivity extends Activity {
         touchSpinner = spinner(new String[]{"Situational touch controls", "Controller-style buttons"});
         addSetting(column, "Touch control scheme", "The iOS port supports editable touch layouts", touchSpinner);
 
-        TextView note = text("These preferences are saved locally. They will take effect when the Android engine and input layers are connected.", 12, 0xffaab5c7, false);
+        TextView note = text("These preferences are saved locally. They will take effect when the Android engine and input layers are connected.", 12, PortTheme.SECONDARY, false);
         note.setPadding(0, dp(16), 0, dp(12));
         column.addView(note);
 
@@ -128,7 +128,7 @@ public final class SettingsActivity extends Activity {
         save.setText("Save settings");
         save.setAllCaps(false);
         save.setTextColor(Color.WHITE);
-        save.setBackground(round(0xffd47a32, dp(14), 0xfff1a15e));
+        save.setBackground(PortTheme.primary(24, getResources().getDisplayMetrics().density));
         root.addView(save, new LinearLayout.LayoutParams(-1, dp(50)));
         save.setOnClickListener(v -> saveSettings());
 
@@ -186,7 +186,7 @@ public final class SettingsActivity extends Activity {
         group.setBackground(panel());
         TextView heading = text(title, 14, Color.WHITE, true);
         group.addView(heading);
-        TextView description = text(detail, 11, 0xffaab5c7, false);
+        TextView description = text(detail, 11, PortTheme.SECONDARY, false);
         description.setPadding(0, dp(3), 0, dp(6));
         group.addView(description);
         group.addView(control, new LinearLayout.LayoutParams(-1, dp(44)));
@@ -196,7 +196,7 @@ public final class SettingsActivity extends Activity {
     }
 
     private TextView section(String title) {
-        TextView label = text(title, 11, 0xffaab5c7, true);
+        TextView label = text(title, 11, PortTheme.SECONDARY, true);
         label.setPadding(dp(2), dp(15), 0, dp(8));
         return label;
     }
@@ -220,7 +220,7 @@ public final class SettingsActivity extends Activity {
     }
 
     private GradientDrawable panel() {
-        return round(0xff1a2639, dp(12), 0xff4b5d79);
+        return PortTheme.glass(14, getResources().getDisplayMetrics().density);
     }
 
     private GradientDrawable round(int color, int radius, int stroke) {
