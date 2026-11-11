@@ -57,10 +57,10 @@ bool PGAndroidCreatePipelineLayout(
 }
 
 bool PGAndroidUpdatePipelineDescriptors(
-    const PGAndroidPipelineLayout &layout, const PGAndroidShaderModule *shaders,
+    VkDevice device, const PGAndroidPipelineLayout &layout, const PGAndroidShaderModule *shaders,
     uint32_t shaderCount, const PGAndroidGpuBindingState &state,
     const PGAndroidGpuResources &resources, PGAndroidDescriptorWriter &writer) {
-    if (!layout.descriptorSet || !shaders || shaderCount == 0) return false;
+    if (!device || !layout.descriptorSet || !shaders || shaderCount == 0) return false;
     std::unordered_map<uint32_t, PGAndroidDescriptorBinding> resolved;
     for (uint32_t i=0;i<shaderCount;++i) {
         std::vector<PGAndroidDescriptorBinding> stageBindings;
@@ -87,7 +87,7 @@ bool PGAndroidUpdatePipelineDescriptors(
     for (size_t i=0;i<writes.size();++i)
         if (writes[i].binding != layout.bindings[i].binding ||
             writes[i].type != layout.bindings[i].type) return false;
-    return writer.update(VK_NULL_HANDLE, layout.descriptorSet, resources,
+    return writer.update(device, layout.descriptorSet, resources,
                          writes.data(), static_cast<uint32_t>(writes.size()));
 }
 
