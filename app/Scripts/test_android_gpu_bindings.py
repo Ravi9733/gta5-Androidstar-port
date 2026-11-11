@@ -38,6 +38,22 @@ int main() {
     assert(state.setRenderTargets(rt,37));
     assert(state.renderTarget(0).viewId==100 && state.renderTarget(7).flags==10);
     assert(state.depthTarget().viewId==200 && state.depthTarget().readOnly==12);
+    const uint32_t vb[] = {4,2,501,24,16,502,32,64};
+    assert(state.setVertexBuffers(vb,8));
+    assert(state.vertexBuffer(4).objectId==501 && state.vertexBuffer(4).stride==24);
+    assert(state.vertexBuffer(5).offset==64);
+    assert(!state.setVertexBuffers(vb,7));
+    const uint32_t ib[] = {601,57,128};
+    assert(state.setIndexBuffer(ib,3));
+    assert(state.indexBuffer().objectId==601 && state.indexBuffer().format==57);
+    const uint32_t shader[] = {1,701};
+    assert(state.setShader(shader,2) && state.shader(1)==701);
+    const uint32_t badShader[] = {3,702};
+    assert(!state.setShader(badShader,2));
+    const uint32_t layout[] = {801};
+    const uint32_t topology[] = {4};
+    assert(state.setInputLayout(layout,1) && state.inputLayout()==801);
+    assert(state.setTopology(topology,1) && state.topology()==4);
     assert(!state.setRenderTargets(rt,36));
     state.clear();
     assert(state.renderTarget(0).viewId==0 && state.depthTarget().viewId==0);
@@ -46,6 +62,8 @@ int main() {
     assert(state.shaderResource(2,127) == 0);
     assert(state.sampler(0,15) == 0);
     assert(state.unorderedAccess(2,6).objectId == 0);
+    assert(state.vertexBuffer(4).objectId == 0 && state.indexBuffer().objectId == 0);
+    assert(state.shader(1) == 0 && state.inputLayout() == 0 && state.topology() == 0);
     return 0;
 }
 """
