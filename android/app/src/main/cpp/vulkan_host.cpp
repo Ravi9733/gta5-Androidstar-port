@@ -9,6 +9,8 @@
 #include "gpu_descriptor_writer.h"
 #include "gpu_shader_bindings.h"
 #include "gpu_binding_state.h"
+#include "gpu_command_packets.h"
+#include "gpu_object_registry.h"
 #include "PGAndroidGpuProtocol.h"
 
 #include <algorithm>
@@ -36,6 +38,7 @@ struct VulkanHost {
     std::unique_ptr<PGAndroidDescriptorPool> descriptorPool;
     PGAndroidDescriptorWriter descriptorWriter;
     PGAndroidGpuBindingState bindings;
+    PGAndroidGpuObjectRegistry objects;
     VkQueue queue = VK_NULL_HANDLE;
     uint32_t queueFamily = UINT32_MAX;
     VkSwapchainKHR swapchain = VK_NULL_HANDLE;
@@ -92,6 +95,7 @@ void destroyLocked() {
         (void)vkDeviceWaitIdle(host.device);
         host.descriptorPool.reset();
         host.resources.reset();
+        host.objects.clear();
         for (size_t i = 0; i < 2; ++i) {
             if (host.inFlight[i]) vkDestroyFence(host.device, host.inFlight[i], nullptr);
             if (host.imageAvailable[i]) vkDestroySemaphore(host.device, host.imageAvailable[i], nullptr);
@@ -535,7 +539,12 @@ extern "C" bool PGAndroidExecuteGpuPacket(uint32_t opcode, const uint32_t *words
     switch (opcode) {
         case PG_ANDROID_OP_INIT:
             host.bindings.clear();
+            host.objects.clear();
             return true;
+        case PG_ANDROID_OP_CREATE_SHADER:
+            return host.objects.createShader(words, wordCount);
+        case PG_ANDROID_OP_CREATE_LAYOUT:
+            return host.objects.createLayout(words, wordCount);
         case PG_ANDROID_OP_CREATE_STATE:
             return host.resources->createSamplerState(words, wordCount);
         case PG_ANDROID_OP_CREATE_TEXTURE:
@@ -551,8 +560,12 @@ extern "C" bool PGAndroidExecuteGpuPacket(uint32_t opcode, const uint32_t *words
         case PG_ANDROID_OP_UPLOAD_BUFFER:
         case PG_ANDROID_OP_UPLOAD_BUFFER_NO_OVERWRITE:
             return host.resources->uploadBuffer(words, wordCount);
-        case PG_ANDROID_OP_DESTROY_OBJECT:
-            return wordCount >= 1 && host.resources->destroyObject(words[0]);
+        case PG_ANDROID_OP_DESTROY_OBJECT: {
+            if (wordCount < 1 || words[0] == 0) return false;
+            const bool resourceRemoved = host.resources->destroyObject(words[0]);
+            const bool metadataRemoved = host.objects.destroy(words[0]);
+            return resourceRemoved || metadataRemoved;
+        }
         case PG_ANDROID_OP_SET_SHADER:
             return host.bindings.setShader(words, wordCount);
         case PG_ANDROID_OP_SET_INPUT_LAYOUT:
