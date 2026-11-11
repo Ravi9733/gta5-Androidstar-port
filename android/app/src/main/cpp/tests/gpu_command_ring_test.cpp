@@ -29,6 +29,9 @@ int main() {
     assert(packet.word_count == 2 && packet.words[0] == payload[0] &&
            packet.words[1] == payload[1] && packet.next_tail == 80);
     cursor.tail = packet.next_tail;
+    assert(PGAndroidGpuRingRead(ring.data(), ring.size(), cursor.tail, &cursor, &packet)
+           == PG_ANDROID_RING_EMPTY);
+    assert(packet.words == nullptr && packet.word_count == 0);
 
     put(ring, 80, PG_ANDROID_OP_WRAP, 0);
     assert(PGAndroidGpuRingRead(ring.data(), ring.size(), 88, &cursor, &packet)
@@ -51,6 +54,11 @@ int main() {
 
     cursor.tail = 64;
     assert(PGAndroidGpuRingRead(ring.data(), ring.size(), 256, &cursor, &packet)
+           == PG_ANDROID_RING_CORRUPT);
+
+    std::vector<uint8_t> unaligned(257, 0);
+    cursor.tail = 64;
+    assert(PGAndroidGpuRingRead(unaligned.data() + 1, 256, 80, &cursor, &packet)
            == PG_ANDROID_RING_CORRUPT);
     return 0;
 }
