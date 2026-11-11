@@ -15,6 +15,9 @@ public:
     bool uploadBuffer(const uint32_t *words, uint32_t wordCount);
     bool uploadTexture(const uint32_t *words, uint32_t wordCount);
     bool createTextureView(const uint32_t *words, uint32_t wordCount, bool unorderedAccess);
+    bool getBufferDescriptor(uint32_t objectId, VkDeviceSize offset, VkDeviceSize range,
+                             VkDescriptorBufferInfo &out) const;
+    bool getImageDescriptor(uint32_t viewId, VkDescriptorImageInfo &out) const;
     bool destroyObject(uint32_t objectId);
     void reset();
 
