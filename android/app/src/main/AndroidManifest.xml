@@ -11,7 +11,7 @@
         android:usesCleartextTraffic="false">
         <activity
             android:name=".SettingsActivity"
-            android:screenOrientation="landscape"
+            android:screenOrientation="unspecified"
             android:exported="false" />
         <activity
             android:name=".ControlsActivity"
