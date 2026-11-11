@@ -32,6 +32,9 @@ extern "C" PGAndroidGpuRingResult PGAndroidGpuRingRead(
     const uint32_t words = header[1];
 
     if (opcode == PG_ANDROID_OP_WRAP) {
+        // WRAP is a header-only marker. Reject malformed payload lengths rather
+        // than silently skipping bytes that could conceal a corrupt ring.
+        if (words != 0u) return PG_ANDROID_RING_CORRUPT;
         cursor->tail = PG_ANDROID_GPU_RING_HEADER_BYTES;
         packet->opcode = opcode;
         packet->word_count = 0;
@@ -54,7 +57,6 @@ extern "C" PGAndroidGpuRingResult PGAndroidGpuRingRead(
     return PG_ANDROID_RING_PACKET;
 }
 
-
 /* Implemented by vulkan_host.cpp; false means this opcode is not yet supported. */
 extern "C" bool PGAndroidExecuteGpuPacket(uint32_t opcode, const uint32_t *words,
                                            uint32_t wordCount);
@@ -73,7 +75,7 @@ extern "C" int PGAndroidConsumeGpuRing(
         if (result == PG_ANDROID_RING_WRAP) continue;
         if (packet.opcode != PG_ANDROID_OP_NOP &&
             !PGAndroidExecuteGpuPacket(packet.opcode, packet.words, packet.word_count))
-            return 0; // Keep tail on unsupported/failed work; never drop game commands.
+            return 0;
         cursor->tail = packet.next_tail;
         ++*processed;
     }
