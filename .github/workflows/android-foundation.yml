@@ -56,6 +56,11 @@ jobs:
       - name: Test generated WABT Android diagnostics patch
         run: python3 app/Scripts/test_android_engine_pipeline.py
 
+      - name: Test Android shader and GPU protocol preparation
+        run: |
+          python3 app/Scripts/test_android_shaders.py
+          python3 app/Scripts/test_android_gpu_protocol.py
+
       - name: Build arm64 debug APK
         run: gradle -p android --no-daemon assembleDebug
 
