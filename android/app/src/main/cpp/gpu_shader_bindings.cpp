@@ -1,5 +1,7 @@
 #include "gpu_shader_bindings.h"
 
+#include <utility>
+
 bool PGAndroidBuildShaderDescriptorBindings(
     uint32_t stage, const PGAndroidShaderResource *resources, uint32_t resourceCount,
     const PGAndroidGpuBindingState &state, std::vector<PGAndroidDescriptorBinding> &out) {
