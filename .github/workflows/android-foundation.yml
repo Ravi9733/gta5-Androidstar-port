@@ -5,6 +5,8 @@ on:
     branches: [android-port-foundation]
     paths:
       - 'android/**'
+      - 'app/Source/**'
+      - 'app/Scripts/**'
       - '.github/workflows/android-foundation.yml'
   pull_request:
     branches: [android-port-foundation]
@@ -37,6 +39,9 @@ jobs:
       - name: Install Android toolchain
         run: |
           sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
+
+      - name: Test generated WABT Android diagnostics patch
+        run: python3 app/Scripts/test_android_engine_pipeline.py
 
       - name: Build arm64 debug APK
         run: gradle -p android --no-daemon assembleDebug
