@@ -154,7 +154,7 @@ uint32_t PGAndroidGpuResources::findMemoryType(
 bool PGAndroidGpuResources::createBuffer(const uint32_t *p, uint32_t n) {
     if (!p || n < 5) return false;
     const uint32_t id = p[0], bytes = p[1], bind = p[2];
-    if (!id || !bytes || bytes > kMaxBufferBytes || buffers_.count(id) || textures_.count(id)) return false;
+    if (!id || !bytes || bytes > kMaxBufferBytes || buffers_.count(id) || textures_.count(id) || views_.count(id)) return false;
 
     VkBufferUsageFlags usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
                                VK_BUFFER_USAGE_TRANSFER_DST_BIT;
@@ -598,6 +598,15 @@ bool PGAndroidGpuResources::destroyObject(uint32_t id) {
     auto it = buffers_.find(id);
     if (it == buffers_.end()) {
         auto texture = textures_.find(id);
+        // Vulkan image views must be destroyed before their parent image.
+        for (auto view = views_.begin(); view != views_.end();) {
+            if (view->second.resourceId == id) {
+                if (view->second.view) vkDestroyImageView(device_, view->second.view, nullptr);
+                view = views_.erase(view);
+            } else {
+                ++view;
+            }
+        }
         if (texture->second.view) vkDestroyImageView(device_, texture->second.view, nullptr);
         if (texture->second.image) vkDestroyImage(device_, texture->second.image, nullptr);
         if (texture->second.memory) vkFreeMemory(device_, texture->second.memory, nullptr);
