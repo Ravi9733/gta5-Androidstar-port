@@ -81,7 +81,9 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         selectedMap = prefs.getInt(KEY_MAP, 0);
 
         FrameLayout root = new FrameLayout(this);
-        root.setBackground(PortTheme.poster(this, "posters/start-bg-ipad.jpg"));
+        boolean landscape = getResources().getDisplayMetrics().widthPixels > getResources().getDisplayMetrics().heightPixels;
+        root.setBackground(PortTheme.poster(this, landscape
+            ? "posters/start-bg-ipad.jpg" : "posters/start-bg-iphone.jpg"));
 
         SurfaceView surface = new SurfaceView(this);
         surface.getHolder().addCallback(this);
