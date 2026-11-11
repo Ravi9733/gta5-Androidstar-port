@@ -19,6 +19,8 @@ public:
     bool getBufferHandle(uint32_t objectId, uint32_t requiredBind, VkBuffer &out, VkDeviceSize &size) const;
     bool getBufferDescriptor(uint32_t objectId, VkDeviceSize offset, VkDeviceSize range,
                              VkDescriptorBufferInfo &out, uint32_t requiredBind) const;
+    bool getAttachmentInfo(uint32_t viewId, bool depth, VkImageView &view, VkFormat &format,
+                          VkSampleCountFlagBits &samples) const;
     bool prepareAttachment(VkCommandBuffer commandBuffer, uint32_t viewId, bool depth,
                            VkImageView &view, VkFormat &format, VkSampleCountFlagBits &samples);
     bool getImageDescriptor(uint32_t viewId, VkDescriptorImageInfo &out,
