@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <unordered_map>
+#include <string>
 #include <vector>
 
 /*
@@ -52,6 +53,31 @@ public:
     const Shader *shader(uint32_t objectId) const {
         const auto it = shaders_.find(objectId);
         return it == shaders_.end() ? nullptr : &it->second;
+    }
+
+
+    // iOS shader library keys are the 16-hex-digit hash with high word first.
+    // Multiple object IDs may legitimately refer to the same compiled shader.
+    const Shader *shaderByHash(uint32_t stage, uint32_t hashLow, uint32_t hashHigh) const {
+        for (const auto &entry : shaders_) {
+            const Shader &candidate = entry.second;
+            if (candidate.stage == stage && candidate.hashLow == hashLow &&
+                candidate.hashHigh == hashHigh) return &candidate;
+        }
+        return nullptr;
+    }
+
+    static std::string shaderHash(uint32_t hashLow, uint32_t hashHigh) {
+        static constexpr char digits[] = "0123456789abcdef";
+        std::string result(16, '0');
+        const uint32_t words[2] = {hashHigh, hashLow};
+        for (unsigned w = 0; w < 2; ++w) {
+            for (unsigned n = 0; n < 8; ++n) {
+                const unsigned shift = 28u - n * 4u;
+                result[w * 8u + n] = digits[(words[w] >> shift) & 0xfu];
+            }
+        }
+        return result;
     }
 
     const Layout *layout(uint32_t objectId) const {
