@@ -52,6 +52,10 @@ int main() {
     assert(storedShader && storedShader->stage == 2);
     assert(storedShader->hashLow == 0x11u && storedShader->hashHigh == 0x22u);
     assert(storedShader->inputSignatures.size() == 4 && storedShader->inputSignatures[3] == 10);
+    assert(registry.shaderByHash(2, 0x11u, 0x22u) == storedShader);
+    assert(registry.shaderByHash(1, 0x11u, 0x22u) == nullptr);
+    assert(PGAndroidGpuObjectRegistry::shaderHash(0x12345678u, 0x9abcdef0u) ==
+           "9abcdef012345678");
     // Registry owns a copy; mutating the packet must not mutate the stored record.
     uint32_t transientShader[] = {102, 0, 1, 2, 1, 3, 4, 5, 6};
     assert(registry.createShader(transientShader, 9));
