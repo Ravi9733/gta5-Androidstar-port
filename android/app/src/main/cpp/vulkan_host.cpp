@@ -7,6 +7,7 @@
 #include "gpu_resources.h"
 #include "gpu_descriptor_pool.h"
 #include "gpu_descriptor_writer.h"
+#include "gpu_shader_bindings.h"
 #include "gpu_binding_state.h"
 #include "PGAndroidGpuProtocol.h"
 
@@ -572,6 +573,21 @@ extern "C" bool PGAndroidExecuteGpuPacket(uint32_t opcode, const uint32_t *words
 extern "C" bool PGAndroidGpuIsReady(void) {
     std::lock_guard<std::mutex> lock(host.mutex);
     return host.device != VK_NULL_HANDLE && host.resources != nullptr;
+}
+
+extern "C" bool PGAndroidResolveShaderDescriptors(
+    uint32_t stage, const PGAndroidShaderResource *resources, uint32_t resourceCount,
+    PGAndroidDescriptorBinding *outBindings, uint32_t capacity, uint32_t *outCount) {
+    std::lock_guard<std::mutex> lock(host.mutex);
+    if (!host.device || !outCount || (!outBindings && capacity)) return false;
+    std::vector<PGAndroidDescriptorBinding> resolved;
+    if (!PGAndroidBuildShaderDescriptorBindings(stage, resources, resourceCount,
+                                                 host.bindings, resolved)) return false;
+    *outCount = static_cast<uint32_t>(resolved.size());
+    if (capacity < resolved.size()) return false;
+    if (!resolved.empty())
+        std::memcpy(outBindings, resolved.data(), resolved.size() * sizeof(PGAndroidDescriptorBinding));
+    return true;
 }
 
 extern "C" bool PGAndroidCreateDescriptorSetLayout(
