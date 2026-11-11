@@ -13,7 +13,7 @@ int main() {
     const uint32_t direct[] = {3, 120, 2, 4, 0xfffffffeu, 7};
     assert(PGAndroidDecodeDrawPacket(direct, 6, draw));
     assert(draw.kind == PG_ANDROID_DRAW_INDEXED_INSTANCED);
-    assert(draw.countOrArgumentBuffer == 120 && draw.instanceCount == 2);
+    assert(draw.countOrArgumentBuffer == 120 && draw.instanceCountOrArgumentOffset == 2);
     assert(draw.startVertexOrIndex == 4 && draw.baseVertex == -2 && draw.startInstance == 7);
     const uint32_t indirect[] = {4, 55, 16, 0, 0, 0};
     assert(PGAndroidDecodeDrawPacket(indirect, 6, draw));
