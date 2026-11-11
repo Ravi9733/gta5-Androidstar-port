@@ -1,0 +1,49 @@
+name: Android foundation build
+
+on:
+  push:
+    branches: [android-port-foundation]
+    paths:
+      - 'android/**'
+      - '.github/workflows/android-foundation.yml'
+  pull_request:
+    branches: [android-port-foundation]
+    paths:
+      - 'android/**'
+      - '.github/workflows/android-foundation.yml'
+  workflow_dispatch:
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android toolchain
+        run: |
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
+
+      - name: Build arm64 debug APK
+        run: gradle -p android --no-daemon assembleDebug
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: gta5-android-foundation-debug
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
