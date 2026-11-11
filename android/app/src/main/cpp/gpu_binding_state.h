@@ -31,8 +31,15 @@ public:
             uav_[p[0]][p[1]+i]={p[3+i],p[3+p[2]+i]};
         return true;
     }
+    bool setRenderTargets(const uint32_t *p, uint32_t n) {
+        if (!p || n < 37u) return false;
+        for (uint32_t i=0; i<8; ++i)
+            rt_[i] = {p[i*4], p[i*4+1], p[i*4+2], p[i*4+3]};
+        ds_ = {p[32], p[33], p[34], p[35], p[36]};
+        return true;
+    }
     void clear() {
-        cb_={}; srv_={}; sampler_={}; uav_={};
+        cb_={}; srv_={}; sampler_={}; uav_={}; rt_={}; ds_={};
     }
     const ConstantBuffer &constantBuffer(uint32_t stage,uint32_t slot) const { return cb_[stage][slot]; }
     uint32_t shaderResource(uint32_t stage,uint32_t slot) const { return srv_[stage][slot]; }
