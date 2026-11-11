@@ -1,0 +1,101 @@
+#include "NativeGraphics.h"
+#include "gpu_command_ring.h"
+
+#include <android/log.h>
+#include <atomic>
+#include <chrono>
+#include <cstdint>
+#include <thread>
+
+namespace {
+constexpr const char *kTag = "GTA5Android";
+constexpr uint32_t kRingDataOffset = PG_ANDROID_GPU_RING_HEADER_BYTES;
+constexpr uint32_t kBatchLimit = 512;
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, kTag, __VA_ARGS__)
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, kTag, __VA_ARGS__)
+
+std::atomic<bool> gWorkerStarted{false};
+
+extern "C" bool PGAndroidGpuIsReady(void);
+extern "C" uint32_t PGGraphicsNotify(uint64_t address) __attribute__((weak));
+extern "C" uint32_t PGGraphicsWait(uint64_t address, uint32_t expected,
+                                    int64_t timeoutNs) __attribute__((weak));
+
+uint32_t loadAcquire(uint8_t *address) {
+    auto *word = reinterpret_cast<uint32_t *>(address);
+    return std::atomic_ref<uint32_t>(*word).load(std::memory_order_acquire);
+}
+void storeRelease(uint8_t *address, uint32_t value) {
+    auto *word = reinterpret_cast<uint32_t *>(address);
+    std::atomic_ref<uint32_t>(*word).store(value, std::memory_order_release);
+}
+void addExecuted(uint8_t *address, uint32_t value) {
+    auto *word = reinterpret_cast<uint32_t *>(address);
+    std::atomic_ref<uint32_t>(*word).fetch_add(value, std::memory_order_relaxed);
+}
+
+void runRingWorker(uint8_t *memory, uint64_t memorySize, uint64_t ringOffset,
+                   uint32_t ringSize) {
+    uint8_t *ring = memory + ringOffset;
+    storeRelease(ring + 4, kRingDataOffset);
+    storeRelease(ring + 8, 1);
+    PGAndroidGpuRingCursor cursor{kRingDataOffset};
+    LOGI("Original iOS GPU ring attached: offset=%llu size=%u",
+         static_cast<unsigned long long>(ringOffset), ringSize);
+
+    for (;;) {
+        const uint32_t head = loadAcquire(ring);
+        if (head == cursor.tail || !PGAndroidGpuIsReady()) {
+            storeRelease(ring + 20, 1);
+            if (PGGraphicsWait) {
+                (void)PGGraphicsWait(ringOffset, head, 100000000ll);
+            } else {
+                std::this_thread::sleep_for(std::chrono::milliseconds(2));
+            }
+            storeRelease(ring + 20, 0);
+            continue;
+        }
+
+        const uint32_t previousTail = cursor.tail;
+        uint32_t executed = 0;
+        const int ok = PGAndroidConsumeGpuRing(
+            ring, ringSize, head, &cursor, kBatchLimit, &executed);
+
+        if (executed) addExecuted(ring + 12, executed);
+        if (cursor.tail != previousTail || executed)
+            storeRelease(ring + 4, cursor.tail);
+        if (cursor.tail != previousTail || executed) {
+            if (PGGraphicsNotify) (void)PGGraphicsNotify(ringOffset + 4);
+        }
+
+        if (!ok) {
+            // Never acknowledge a command the Vulkan backend did not execute.
+            storeRelease(ring + 8, 2);
+            LOGE("GPU command ring paused at opcode packet tail=%u head=%u; "
+                 "the command is malformed or not implemented yet",
+                 cursor.tail, head);
+            break;
+        }
+    }
+}
+} // namespace
+
+extern "C" void PGStartGraphics(void *memory, uint64_t memorySize,
+                                  uint64_t ringOffset, uint64_t ringSize,
+                                  uint64_t debug) {
+    (void)debug;
+    if (!memory || ringOffset > memorySize || ringSize > memorySize - ringOffset ||
+        ringSize < kRingDataOffset + 8 || ringSize > UINT32_MAX ||
+        (ringOffset & 3u) || (ringSize & 3u) ||
+        (reinterpret_cast<uintptr_t>(memory) & 3u)) {
+        LOGE("Refusing invalid engine GPU ring mapping");
+        return;
+    }
+    bool expected = false;
+    if (!gWorkerStarted.compare_exchange_strong(expected, true)) {
+        LOGE("GPU ring worker already started; duplicate start ignored");
+        return;
+    }
+    std::thread(runRingWorker, static_cast<uint8_t *>(memory), memorySize,
+                ringOffset, static_cast<uint32_t>(ringSize)).detach();
+}
