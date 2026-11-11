@@ -1,10 +1,16 @@
 package com.ravi.gta5port;
 
 import android.content.Context;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.view.Gravity;
 
-/** Android translation of the original iOS Theme palette and glass surfaces. */
+import java.io.InputStream;
+
+/** Android translation of the original iOS theme and poster artwork. */
 final class PortTheme {
     static final int NIGHT = 0xff080d1a;
     static final int NIGHT_BLUE = 0xff101b31;
@@ -21,6 +27,17 @@ final class PortTheme {
     static final int PROBLEM = 0xffff6b61;
 
     private PortTheme() {}
+
+    static Drawable poster(Context context, String assetPath) {
+        try (InputStream input = context.getAssets().open(assetPath)) {
+            BitmapDrawable image = new BitmapDrawable(context.getResources(),
+                BitmapFactory.decodeStream(input));
+            image.setGravity(Gravity.FILL);
+            return image;
+        } catch (Exception ignored) {
+            return backdrop();
+        }
+    }
 
     static GradientDrawable backdrop() {
         return new GradientDrawable(GradientDrawable.Orientation.TL_BR,
