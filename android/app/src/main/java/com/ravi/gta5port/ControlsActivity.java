@@ -58,7 +58,7 @@ public final class ControlsActivity extends Activity {
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(12), dp(8), dp(12), dp(10));
         root.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-            new int[]{0xff101b2c, 0xff060a12}));
+            new int[]{0xff182b48, 0xff080d1a, 0xff24172a}));
 
         LinearLayout toolbar = new LinearLayout(this);
         toolbar.setGravity(Gravity.CENTER_VERTICAL);
@@ -79,7 +79,7 @@ public final class ControlsActivity extends Activity {
         root.addView(toolbar);
 
         stage = new FrameLayout(this);
-        stage.setBackground(round(0x88202d40, dp(16), 0xff42536b));
+        stage.setBackground(PortTheme.glass(16, getResources().getDisplayMetrics().density));
         LinearLayout.LayoutParams stageParams = new LinearLayout.LayoutParams(-1, 0, 1);
         stageParams.topMargin = dp(10);
         stageParams.bottomMargin = dp(8);
@@ -87,7 +87,7 @@ public final class ControlsActivity extends Activity {
 
         TextView hint = new TextView(this);
         hint.setText("Drag controls to move them. Positions are saved for the Android touch-input port.");
-        hint.setTextColor(0xffaab5c7);
+        hint.setTextColor(PortTheme.SECONDARY);
         hint.setTextSize(11);
         root.addView(hint);
 
@@ -117,7 +117,7 @@ public final class ControlsActivity extends Activity {
                 control.setTextSize(12);
                 control.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
                 control.setGravity(Gravity.CENTER);
-                control.setBackground(round(0xb52a3c54, dp(54), 0xff8db7e8));
+                control.setBackground(PortTheme.glass(54, getResources().getDisplayMetrics().density));
                 control.setElevation(dp(5));
                 item.view = control;
                 float[] pos = readPosition(item);
@@ -253,7 +253,7 @@ public final class ControlsActivity extends Activity {
         button.setTextColor(Color.WHITE);
         button.setTextSize(11);
         button.setAllCaps(false);
-        button.setBackground(round(0xff1a2639, dp(12), 0xff4b5d79));
+        button.setBackground(PortTheme.glassButton(12, getResources().getDisplayMetrics().density));
         return button;
     }
 
