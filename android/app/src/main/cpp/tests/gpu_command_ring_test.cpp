@@ -22,21 +22,21 @@ int main() {
            == PG_ANDROID_RING_EMPTY);
 
     const uint32_t payload[] = {0x1234u, 0x5678u};
-    put(ring, 64, PG_ANDROID_GPU_OP_CREATE_BUFFER, 2, payload);
+    put(ring, 64, PG_ANDROID_OP_CREATE_BUFFER, 2, payload);
     assert(PGAndroidGpuRingRead(ring.data(), ring.size(), 80, &cursor, &packet)
            == PG_ANDROID_RING_PACKET);
-    assert(packet.opcode == PG_ANDROID_GPU_OP_CREATE_BUFFER);
+    assert(packet.opcode == PG_ANDROID_OP_CREATE_BUFFER);
     assert(packet.word_count == 2 && packet.words[0] == payload[0] &&
            packet.words[1] == payload[1] && packet.next_tail == 80);
     cursor.tail = packet.next_tail;
 
-    put(ring, 80, PG_ANDROID_GPU_OP_WRAP, 0);
+    put(ring, 80, PG_ANDROID_OP_WRAP, 0);
     assert(PGAndroidGpuRingRead(ring.data(), ring.size(), 88, &cursor, &packet)
            == PG_ANDROID_RING_WRAP);
     assert(cursor.tail == PG_ANDROID_GPU_RING_HEADER_BYTES);
 
     cursor.tail = 64;
-    put(ring, 64, PG_ANDROID_GPU_OP_DRAW, 100);
+    put(ring, 64, PG_ANDROID_OP_DRAW, 100);
     assert(PGAndroidGpuRingRead(ring.data(), ring.size(), 128, &cursor, &packet)
            == PG_ANDROID_RING_CORRUPT);
 
