@@ -32,7 +32,7 @@ add_library(gta5_android SHARED vulkan_host.cpp android_graphics_host.cpp gpu_co
 add_dependencies(gta5_android android_gpu_protocol)
 target_compile_features(gta5_android PRIVATE cxx_std_20)
 target_compile_options(gta5_android PRIVATE -Wall -Wextra -Werror=return-type)
-target_include_directories(gta5_android PRIVATE "${ANDROID_GENERATED_DIR}")
+target_include_directories(gta5_android PRIVATE "${ANDROID_GENERATED_DIR}" "${PORT_SOURCE_DIR}")
 
 find_library(android-lib android REQUIRED)
 find_library(log-lib log REQUIRED)
