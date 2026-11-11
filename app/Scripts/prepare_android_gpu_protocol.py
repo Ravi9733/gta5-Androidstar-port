@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Extract the original iOS renderer's stable command-ring protocol for Android.
-
-The Android Vulkan renderer must consume the exact D3D11 command stream emitted by
-the original game engine. This script extracts opcode numbers and shared binding
-constants from the iOS reference implementation; it does not implement rendering.
-"""
+"""Extract the original iOS renderer's stable command-ring protocol for Android."""
 from __future__ import annotations
 
 import argparse
@@ -15,7 +10,7 @@ import sys
 
 OP_ENUM = re.compile(r"enum\s+Op\s*:\s*uint32_t\s*\{(.*?)\};", re.S)
 OP_ENTRY = re.compile(r"([A-Z][A-Z0-9_]*)\s*=\s*(0x[0-9a-fA-F]+|[0-9]+)")
-CONST = re.compile(r"static\s+const\s+uint32_t\s+(BIND_[A-Z]+)\s*=\s*(0x[0-9a-fA-F]+|[0-9]+)")
+BIND_ENTRY = re.compile(r"(BIND_[A-Z]+)\s*=\s*(0x[0-9a-fA-F]+|[0-9]+)")
 LAYOUT = re.compile(r"(k(?:ConstTableBuffer|ImmediateBuffer|FirstStorageBuffer|VertexBufferTop|ZeroVertexBuffer|UavTextureBase|NanClampBuffer))\s*=\s*(0x[0-9a-fA-F]+|[0-9]+)")
 
 
@@ -31,12 +26,13 @@ def parse_protocol(renderer_source: str, internal_header: str) -> dict:
         raise SystemExit("Duplicate command-ring opcode values detected.")
     if values != list(range(len(values))):
         raise SystemExit("Opcode values are not contiguous and ordered; review protocol before porting.")
-    if ops[0] != {"name": "NOP", "value": 0} or ops[1] != {"name": "WRAP", "value": 1}:
+    if ops[0]["name"] != "NOP" or ops[1]["name"] != "WRAP":
         raise SystemExit("Unexpected NOP/WRAP command-ring prefix.")
     if ops[-1]["value"] != 47:
         raise SystemExit(f"Expected original protocol to end at opcode 47, got {ops[-1]['value']}.")
 
-    bind_decl = re.search(r"static\\s+const\\s+uint32_t\\s+(.*?);", renderer_source, re.S)\n    bindings = {name: int(value, 0) for name, value in BIND_ENTRY.findall(bind_decl.group(1))} if bind_decl else {}
+    bind_decl = re.search(r"static\s+const\s+uint32_t\s+(.*?);", renderer_source, re.S)
+    bindings = {name: int(value, 0) for name, value in BIND_ENTRY.findall(bind_decl.group(1))} if bind_decl else {}
     if not bindings:
         raise SystemExit("Could not extract D3D11 resource binding flags.")
     layouts = {name: int(value, 0) for name, value in LAYOUT.findall(internal_header)}
