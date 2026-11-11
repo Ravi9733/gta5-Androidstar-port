@@ -19,10 +19,15 @@ with tempfile.TemporaryDirectory(prefix="pg-runtime-hook-") as directory:
     module.install_trap_callback(runtime)
     patched = runtime.read_text()
     assert patched.count("pg_record_trap(code)") == 1
+    assert "void pg_record_trap(wasm_rt_trap_t code);" in patched
     assert "\\n" not in patched, "The generated C contains literal backslash-n text"
     compiler = shutil.which("cc")
     if compiler:
-        subprocess.run([compiler, "-fsyntax-only", str(runtime)], check=True)
+        subprocess.run(
+            [compiler, "-std=c11", "-Werror=implicit-function-declaration",
+             "-fsyntax-only", str(runtime)],
+            check=True,
+        )
     assert patched.index("pg_record_trap(code)") < patched.index("abort();")
     module.install_trap_callback(runtime)
     assert runtime.read_text() == patched
