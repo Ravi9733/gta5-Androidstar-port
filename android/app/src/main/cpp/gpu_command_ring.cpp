@@ -53,3 +53,32 @@ extern "C" PGAndroidGpuRingResult PGAndroidGpuRingRead(
     packet->next_tail = tail + 8u + words * 4u;
     return PG_ANDROID_RING_PACKET;
 }
+
+
+/* Implemented by vulkan_host.cpp; false means this opcode is not yet supported. */
+extern "C" bool PGAndroidExecuteGpuPacket(uint32_t opcode, const uint32_t *words,
+                                           uint32_t wordCount);
+
+extern "C" int PGAndroidConsumeGpuRing(
+    const uint8_t *ring, uint32_t ringSize, uint32_t head,
+    PGAndroidGpuRingCursor *cursor, uint32_t maxPackets, uint32_t *processed) {
+    if (processed) *processed = 0;
+    if (!ring || !cursor || !processed || maxPackets == 0) return 0;
+    for (uint32_t count = 0; count < maxPackets; ++count) {
+        PGAndroidGpuPacket packet{};
+        const PGAndroidGpuRingResult result =
+            PGAndroidGpuRingRead(ring, ringSize, head, cursor, &packet);
+        if (result == PG_ANDROID_RING_EMPTY) return 1;
+        if (result == PG_ANDROID_RING_CORRUPT) return 0;
+        if (result == PG_ANDROID_RING_WRAP) {
+            ++*processed;
+            continue;
+        }
+        if (packet.opcode != PG_ANDROID_OP_NOP &&
+            !PGAndroidExecuteGpuPacket(packet.opcode, packet.words, packet.word_count))
+            return 0; // Keep tail on unsupported/failed work; never drop game commands.
+        cursor->tail = packet.next_tail;
+        ++*processed;
+    }
+    return 1;
+}
