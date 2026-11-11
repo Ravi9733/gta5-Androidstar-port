@@ -13,7 +13,7 @@ bool PGAndroidRecordDraw(VkCommandBuffer commandBuffer,
     if (!commandBuffer || !pipeline.handle || pipeline.compute ||
         !layout.pipelineLayout || !layout.descriptorSet ||
         (!vertexBufferIds && vertexBufferCount) || (!vertexOffsets && vertexBufferCount) ||
-        vertexBufferCount > 16 || instanceCount == 0) return false;
+        vertexBufferCount > 16 || instanceCount == 0 ||\n        (!indexBufferId && vertexCount == 0)) return false;
 
     std::vector<VkBuffer> buffers(vertexBufferCount);
     for (uint32_t i=0;i<vertexBufferCount;++i) {
