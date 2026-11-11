@@ -62,7 +62,7 @@ bool PGAndroidCreateShaderModule(
     out.module=module;
     out.stage=stage;
     out.stageIndex=stageIndex;
-    out.reflection.assign(resources,resources+resourceCount);
+    if (resourceCount) out.reflection.assign(resources,resources+resourceCount);
     out.descriptors=std::move(descriptors);
     return true;
 }
