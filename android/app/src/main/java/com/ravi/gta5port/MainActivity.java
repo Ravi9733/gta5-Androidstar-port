@@ -199,7 +199,7 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         Button settings = smallButton("Settings");
         Button controls = smallButton("Controls layout");
         settings.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, SettingsActivity.class)));
-        controls.setEnabled(false);
+        controls.setOnClickListener(v -> startActivity(new Intent(MainActivity.this, ControlsActivity.class)));
         actions.addView(settings, new LinearLayout.LayoutParams(dp(112), dp(40)));
         LinearLayout.LayoutParams controlsParams = new LinearLayout.LayoutParams(dp(132), dp(40));
         controlsParams.leftMargin = dp(8);
