@@ -26,13 +26,25 @@ bool PGAndroidCreateShaderModule(
     if (vkCreateShaderModule(device,&info,nullptr,&module)!=VK_SUCCESS) return false;
     out.module=module;
     out.stage=stage;
+    out.stageIndex=stageIndex;
+    out.reflection.assign(resources,resources+resourceCount);
     out.descriptors=std::move(descriptors);
     return true;
+}
+
+
+bool PGAndroidRefreshShaderDescriptors(const PGAndroidShaderModule &shader,
+    const PGAndroidGpuBindingState &state, std::vector<PGAndroidDescriptorBinding> &out) {
+    if (!shader.module || shader.stageIndex >= 3) return false;
+    return PGAndroidBuildShaderDescriptorBindings(shader.stageIndex,
+        shader.reflection.data(), static_cast<uint32_t>(shader.reflection.size()), state, out);
 }
 
 void PGAndroidDestroyShaderModule(VkDevice device, PGAndroidShaderModule &shader) {
     if (device && shader.module) vkDestroyShaderModule(device,shader.module,nullptr);
     shader.module=VK_NULL_HANDLE;
     shader.stage=VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
+    shader.stageIndex=0;
+    shader.reflection.clear();
     shader.descriptors.clear();
 }
