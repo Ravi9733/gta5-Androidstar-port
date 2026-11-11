@@ -1,3 +1,57 @@
+// Android currently uses the conservative allocator path. The iOS implementation below
+// relies on Mach VM remapping, Mach page queries, and Apple's reusable-page madvise flags.
+// Until an Android fault/remap implementation is validated, keep these hooks inert so the
+// engine never protects or discards memory that Android cannot restore safely.
+#if defined(__ANDROID__)
+#include <stdint.h>
+#include <stddef.h>
+#include <string.h>
+
+void PGMeshFaultWaitStats(uint64_t *waits, uint64_t *maxUs, uint64_t *slow, uint64_t *late) {
+  if (waits) *waits = 0; if (maxUs) *maxUs = 0; if (slow) *slow = 0; if (late) *late = 0;
+}
+const char *PGMeshVerifyDetail(void) { return "Mesh page release is disabled on Android"; }
+uint64_t PGMeshRemapFallbacks(void) { return 0; }
+void PGMeshVerifyStats(uint64_t *checked, uint64_t *bad, uint64_t *badPage, uint64_t *badOffset) {
+  if (checked) *checked = 0; if (bad) *bad = 0; if (badPage) *badPage = 0; if (badOffset) *badOffset = 0;
+}
+void PGMeshGone(uint32_t oid) { (void)oid; }
+void PGMeshCoverage(char *out, size_t outSize) { if (out && outSize) out[0] = 0; }
+void pg_mesh_source(uint32_t oid, uint64_t src, uint32_t size, uint64_t desc) {
+  (void)oid; (void)src; (void)size; (void)desc;
+}
+void PGMeshAllocated(uint64_t start, uint64_t size) { (void)start; (void)size; }
+void PGMeshFreed(uint64_t start, uint64_t size) { (void)start; (void)size; }
+void PGMeshForgetMesh(uint32_t oid, uint64_t firstPage, uint32_t pageCount, int gone) {
+  (void)oid; (void)firstPage; (void)pageCount; (void)gone;
+}
+void PGMeshShareStats(uint64_t *pages, uint64_t *kept, uint64_t *held) {
+  if (pages) *pages = 0; if (kept) *kept = 0; if (held) *held = 0;
+}
+void PGMeshDeadStats(int64_t *bytes, uint64_t *freed, uint64_t *reusable) {
+  if (bytes) *bytes = 0; if (freed) *freed = 0; if (reusable) *reusable = 0;
+}
+uint32_t PGMeshRelease(uint32_t oid, const uint8_t *contents, uint32_t bytes,
+                       uint64_t *firstPage, uint32_t *pageCount, uint32_t *pageOffset) {
+  (void)oid; (void)contents; (void)bytes;
+  if (firstPage) *firstPage = 0; if (pageCount) *pageCount = 0; if (pageOffset) *pageOffset = 0;
+  return 0;
+}
+void PGMeshForget(uint64_t firstPage, uint32_t pageCount, int gone) {
+  (void)firstPage; (void)pageCount; (void)gone;
+}
+void PGMeshTouch(const void *start, uint64_t length) { (void)start; (void)length; }
+void PGMeshReleaseStats(uint64_t *released, uint64_t *byFault, uint64_t *byForget,
+                        uint64_t *byTouch, uint64_t *mismatched, uint64_t *page,
+                        uint64_t *orphanedPages, uint64_t *orphanWritten, uint64_t *orphanRead) {
+  if (released) *released = 0; if (byFault) *byFault = 0; if (byForget) *byForget = 0;
+  if (byTouch) *byTouch = 0; if (mismatched) *mismatched = 0; if (page) *page = 0;
+  if (orphanedPages) *orphanedPages = 0; if (orphanWritten) *orphanWritten = 0; if (orphanRead) *orphanRead = 0;
+}
+int PGMeshReleaseOn(void) { return 0; }
+int PGMeshPageHandedBack(uint64_t offset) { (void)offset; return 0; }
+
+#else
 // Mesh release (GTA-152, PG_MESH_RELEASE=1): the engine keeps its own copy of every vertex and index buffer
 // after the renderer has copied it into a Metal buffer (measured with PG_TRACE_HELD: 94% of mesh bytes, about
 // 75-135 MB at a 2.1 GB limit). Those engine pages are handed back to iOS and protected; the Metal buffer, which
@@ -661,3 +715,5 @@ int PGMeshReleaseOn(void) { return enabled == 1; }
 // Whether the engine page at this offset is handed back (protected): diagnostics that read engine memory skip it, or
 // they would put it back (GTA-217: the memory breakdown's shader scan did, 26,000 pages at once).
 int PGMeshPageHandedBack(uint64_t offset) { return enabled == 1 && state && offset < capacity && atomic_load(&state[offset / pageSize]) != NORMAL; }
+
+#endif // !__ANDROID__
