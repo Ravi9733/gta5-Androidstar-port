@@ -153,13 +153,22 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
 
         left.addView(text("START MODE", 12, PortTheme.SECONDARY, true));
         LinearLayout modes = new LinearLayout(this);
-        modes.setOrientation(LinearLayout.HORIZONTAL);
-        storyButton = modeButton("Story mode");
-        sandboxButton = modeButton("Sandbox");
-        modes.addView(storyButton, new LinearLayout.LayoutParams(0, dp(54), 1));
-        LinearLayout.LayoutParams sandboxParams = new LinearLayout.LayoutParams(0, dp(54), 1);
-        sandboxParams.leftMargin = dp(9);
-        modes.addView(sandboxButton, sandboxParams);
+        modes.setOrientation(portrait ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
+        storyButton = modeButton("▶   STORY MODE");
+        sandboxButton = modeButton("⌘   SANDBOX");
+        if (portrait) {
+            modes.addView(storyButton, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(58)));
+            LinearLayout.LayoutParams sandboxParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(58));
+            sandboxParams.topMargin = dp(8);
+            modes.addView(sandboxButton, sandboxParams);
+        } else {
+            modes.addView(storyButton, new LinearLayout.LayoutParams(0, dp(54), 1));
+            LinearLayout.LayoutParams sandboxParams = new LinearLayout.LayoutParams(0, dp(54), 1);
+            sandboxParams.leftMargin = dp(9);
+            modes.addView(sandboxButton, sandboxParams);
+        }
         left.addView(modes);
         storyButton.setOnClickListener(v -> selectMode(1));
         sandboxButton.setOnClickListener(v -> selectMode(2));
