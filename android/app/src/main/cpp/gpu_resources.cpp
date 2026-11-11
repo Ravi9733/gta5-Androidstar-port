@@ -399,8 +399,8 @@ bool PGAndroidGpuResources::uploadTexture(const uint32_t *p, uint32_t n) {
     if (vkAllocateMemory(device_, &allocation, nullptr, &stagingMemory) != VK_SUCCESS ||
         vkBindBufferMemory(device_, staging, stagingMemory, 0) != VK_SUCCESS ||
         vkMapMemory(device_, stagingMemory, 0, VK_WHOLE_SIZE, 0, &mapped) != VK_SUCCESS) {
-        if (stagingMemory) vkFreeMemory(device_, stagingMemory, nullptr);
         vkDestroyBuffer(device_, staging, nullptr);
+        if (stagingMemory) vkFreeMemory(device_, stagingMemory, nullptr);
         return false;
     }
     std::memcpy(mapped, uploadData, uploadBytes);
