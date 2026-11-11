@@ -80,8 +80,8 @@ jobs:
             android/app/src/main/cpp/tests/gpu_command_ring_test.cpp \
             -o "$RUNNER_TEMP/pgandroid-gpu/ring-test"
           "$RUNNER_TEMP/pgandroid-gpu/ring-test"
-          c++ -std=c++17 -Wall -Wextra -Werror \\
-            android/app/src/main/cpp/tests/gpu_spirv_validation_test.cpp \\
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            android/app/src/main/cpp/tests/gpu_spirv_validation_test.cpp \
             -o "$RUNNER_TEMP/pgandroid-gpu/spirv-validation-test"
           "$RUNNER_TEMP/pgandroid-gpu/spirv-validation-test"
 
