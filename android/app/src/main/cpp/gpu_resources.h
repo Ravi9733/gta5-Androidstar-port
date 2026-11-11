@@ -5,7 +5,7 @@
 
 class PGAndroidGpuResources {
 public:
-    PGAndroidGpuResources(VkPhysicalDevice physical, VkDevice device, VkQueue queue, uint32_t queueFamily);
+    PGAndroidGpuResources(VkPhysicalDevice physical, VkDevice device, VkQueue queue, uint32_t queueFamily, bool textureCompressionBC);
     ~PGAndroidGpuResources();
     PGAndroidGpuResources(const PGAndroidGpuResources &) = delete;
     PGAndroidGpuResources &operator=(const PGAndroidGpuResources &) = delete;
@@ -41,6 +41,7 @@ private:
     VkDevice device_;
     VkQueue queue_;
     uint32_t queueFamily_;
+    bool textureCompressionBC_;
     std::unordered_map<uint32_t, BufferResource> buffers_;
     std::unordered_map<uint32_t, TextureResource> textures_;
 };
