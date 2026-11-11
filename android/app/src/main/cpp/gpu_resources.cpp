@@ -264,6 +264,7 @@ bool PGAndroidGpuResources::createTexture(const uint32_t *p, uint32_t n) {
     resource.width=width; resource.height=height; resource.depth=depth;
     resource.mipLevels=mipLevels; resource.layers=layers; resource.dimension=dim;
     resource.bind=bind; resource.format=format;
+    resource.samples=static_cast<VkSampleCountFlagBits>(samples);
     resource.bcFormat=bcFormat; resource.decodeBC=decodeBC; resource.sourceFormat=dxgi;
     if (vkCreateImage(device_, &info, nullptr, &resource.image) != VK_SUCCESS) return false;
     VkMemoryRequirements requirements{};
@@ -708,6 +709,52 @@ bool PGAndroidGpuResources::getBufferViewDescriptor(uint32_t id,
     out.offset=offset;
     out.range=buffer->second.size-offset;
     return out.buffer != VK_NULL_HANDLE;
+}
+
+bool PGAndroidGpuResources::prepareAttachment(VkCommandBuffer commandBuffer, uint32_t viewId,
+    bool depth, VkImageView &view, VkFormat &format, VkSampleCountFlagBits &samples) {
+    if (commandBuffer == VK_NULL_HANDLE) return false;
+    auto vi=views_.find(viewId);
+    if (vi==views_.end() || vi->second.bufferView || vi->second.unorderedAccess ||
+        vi->second.view==VK_NULL_HANDLE) return false;
+    auto ti=textures_.find(vi->second.resourceId);
+    if (ti==textures_.end()) return false;
+    TextureResource &texture=ti->second;
+    const uint32_t required=depth ? 0x40u : 0x20u;
+    if ((texture.bind & required)!=required || isDepthVkFormat(texture.format)!=depth)
+        return false;
+    const VkImageLayout target=depth ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL :
+                                       VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    VkImageMemoryBarrier barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+    barrier.srcAccessMask=texture.layout==VK_IMAGE_LAYOUT_UNDEFINED ? 0 :
+        (texture.layout==VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL ? VK_ACCESS_SHADER_READ_BIT :
+         texture.layout==VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL ? VK_ACCESS_TRANSFER_WRITE_BIT :
+         texture.layout==VK_IMAGE_LAYOUT_GENERAL ? VK_ACCESS_SHADER_WRITE_BIT : VK_ACCESS_MEMORY_READ_BIT);
+    barrier.dstAccessMask=depth ? VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+                                  VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT :
+                                  VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    barrier.oldLayout=texture.layout;
+    barrier.newLayout=target;
+    barrier.srcQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex=VK_QUEUE_FAMILY_IGNORED;
+    barrier.image=texture.image;
+    barrier.subresourceRange.aspectMask=depth ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+    if (texture.format==VK_FORMAT_D24_UNORM_S8_UINT || texture.format==VK_FORMAT_D32_SFLOAT_S8_UINT)
+        barrier.subresourceRange.aspectMask|=VK_IMAGE_ASPECT_STENCIL_BIT;
+    barrier.subresourceRange.baseMipLevel=0;
+    barrier.subresourceRange.levelCount=texture.mipLevels;
+    barrier.subresourceRange.baseArrayLayer=0;
+    barrier.subresourceRange.layerCount=texture.layers;
+    VkPipelineStageFlags srcStage=texture.layout==VK_IMAGE_LAYOUT_UNDEFINED ?
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT : VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    VkPipelineStageFlags dstStage=depth ? VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+        VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT : VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    vkCmdPipelineBarrier(commandBuffer,srcStage,dstStage,0,0,nullptr,0,nullptr,1,&barrier);
+    texture.layout=target;
+    view=vi->second.view;
+    format=texture.format;
+    samples=texture.samples;
+    return true;
 }
 
 bool PGAndroidGpuResources::getImageDescriptor(uint32_t id,
