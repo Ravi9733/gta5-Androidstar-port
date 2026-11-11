@@ -6,7 +6,8 @@
 #include <array>
 #include <vector>
 
-// Descriptor set 0/1/2 are vertex/fragment/compute respectively.\nstruct PGAndroidPipelineLayout {
+// Descriptor set 0/1/2 are vertex/fragment/compute respectively.
+struct PGAndroidPipelineLayout {
     std::array<VkDescriptorSetLayout,3> setLayouts{};
     std::array<VkDescriptorSet,3> descriptorSets{};
     VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
