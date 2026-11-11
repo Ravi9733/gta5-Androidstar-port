@@ -14,12 +14,12 @@ int main() {
     assert(PGAndroidDecodeDrawPacket(direct, 6, draw));
     assert(draw.kind == PG_ANDROID_DRAW_INDEXED_INSTANCED);
     assert(draw.countOrArgumentBuffer == 120 && draw.instanceCount == 2);
-    assert(draw.startOrArgumentOffset == 4 && draw.baseVertex == -2 && draw.startInstance == 7);
-    const uint32_t indirect[] = {4, 55, 0, 16, 0, 0};
+    assert(draw.startVertexOrIndex == 4 && draw.baseVertex == -2 && draw.startInstance == 7);
+    const uint32_t indirect[] = {4, 55, 16, 0, 0, 0};
     assert(PGAndroidDecodeDrawPacket(indirect, 6, draw));
-    assert(draw.kind == PG_ANDROID_DRAW_INDEXED_INDIRECT && draw.startOrArgumentOffset == 16);
+    assert(draw.kind == PG_ANDROID_DRAW_INDEXED_INDIRECT && draw.instanceCountOrArgumentOffset == 16);
     const uint32_t badKind[] = {6, 1, 1, 0, 0, 0};
-    const uint32_t badIndirect[] = {5, 0, 0, 2, 0, 0};
+    const uint32_t badIndirect[] = {5, 55, 2, 0, 0, 0};
     assert(!PGAndroidDecodeDrawPacket(direct, 5, draw));
     assert(!PGAndroidDecodeDrawPacket(badKind, 6, draw));
     assert(!PGAndroidDecodeDrawPacket(badIndirect, 6, draw));
