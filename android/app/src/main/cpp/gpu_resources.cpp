@@ -23,7 +23,8 @@ VkFormat dxgiToVkFormat(uint32_t dxgi) {
         case 28: return VK_FORMAT_R8G8B8A8_UNORM;
         case 29: return VK_FORMAT_R8G8B8A8_SRGB;
         case 34: return VK_FORMAT_R16G16_SFLOAT;
-        case 40: case 41: return VK_FORMAT_R32_SFLOAT;
+        case 40: return VK_FORMAT_D32_SFLOAT;
+        case 41: return VK_FORMAT_R32_SFLOAT;
         case 45: return VK_FORMAT_D24_UNORM_S8_UINT;
         case 49: return VK_FORMAT_R8G8_UNORM;
         case 54: return VK_FORMAT_R16_SFLOAT;
