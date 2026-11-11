@@ -18,6 +18,35 @@ struct PGAndroidDrawPacket {
     uint32_t startInstance=0;
 };
 
+/* Original iOS CREATE_SHADER: id, stage, hash low/high, input count, then
+ * four words per input signature. */
+struct PGAndroidCreateShaderPacket {
+    uint32_t objectId=0, stage=0, hashLow=0, hashHigh=0, inputCount=0;
+    const uint32_t *inputSignatures=nullptr;
+};
+inline bool PGAndroidDecodeCreateShaderPacket(const uint32_t *words, uint32_t wordCount,
+                                               PGAndroidCreateShaderPacket &out) {
+    if (!words || wordCount < 5 || words[1] > 2 || words[4] > 64 ||
+        wordCount < 5u + words[4] * 4u) return false;
+    out.objectId=words[0]; out.stage=words[1]; out.hashLow=words[2];
+    out.hashHigh=words[3]; out.inputCount=words[4];
+    out.inputSignatures=words+5;
+    return out.objectId != 0;
+}
+
+/* Original iOS CREATE_LAYOUT: id, element count, then seven words per element. */
+struct PGAndroidCreateLayoutPacket {
+    uint32_t objectId=0, elementCount=0;
+    const uint32_t *elements=nullptr;
+};
+inline bool PGAndroidDecodeCreateLayoutPacket(const uint32_t *words, uint32_t wordCount,
+                                               PGAndroidCreateLayoutPacket &out) {
+    if (!words || wordCount < 2 || words[0] == 0 || words[1] > 32 ||
+        wordCount < 2u + words[1] * 7u) return false;
+    out.objectId=words[0]; out.elementCount=words[1]; out.elements=words+2;
+    return true;
+}
+
 struct PGAndroidDispatchPacket { uint32_t x=0, y=0, z=0; };
 
 inline bool PGAndroidDecodeDrawPacket(const uint32_t *words, uint32_t wordCount,
