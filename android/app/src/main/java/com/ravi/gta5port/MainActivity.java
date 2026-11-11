@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
@@ -80,10 +81,7 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         selectedMap = prefs.getInt(KEY_MAP, 0);
 
         FrameLayout root = new FrameLayout(this);
-        root.setBackground(new GradientDrawable(
-            GradientDrawable.Orientation.TL_BR,
-            new int[]{0xff182b48, 0xff080d1a, 0xff090d18, 0xff24172a}
-        ));
+        root.setBackground(PortTheme.poster(this, "posters/start-bg-ipad.jpg"));
 
         SurfaceView surface = new SurfaceView(this);
         surface.getHolder().addCallback(this);
