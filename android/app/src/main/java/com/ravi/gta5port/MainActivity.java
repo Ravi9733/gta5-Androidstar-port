@@ -39,6 +39,8 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
     private Button sandboxButton;
     private Button gtaMapButton;
     private Button testMapButton;
+    private LinearLayout mapRow;
+    private TextView mapLabel;
     private Button playButton;
     private boolean nativeReady;
     private int selectedMode = 2;
@@ -152,17 +154,17 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         modeDetail.setPadding(dp(2), dp(7), dp(2), dp(9));
         left.addView(modeDetail);
 
-        TextView mapLabel = text("MAP", 11, 0xffaab5c7, true);
+        mapLabel = text("MAP", 11, 0xffaab5c7, true);
         left.addView(mapLabel);
-        LinearLayout maps = new LinearLayout(this);
-        maps.setOrientation(LinearLayout.HORIZONTAL);
+        mapRow = new LinearLayout(this);
+        mapRow.setOrientation(LinearLayout.HORIZONTAL);
         gtaMapButton = smallButton("GTA V");
         testMapButton = smallButton("GTA VI test map");
-        maps.addView(gtaMapButton, new LinearLayout.LayoutParams(0, dp(38), 1));
+        mapRow.addView(gtaMapButton, new LinearLayout.LayoutParams(0, dp(38), 1));
         LinearLayout.LayoutParams testParams = new LinearLayout.LayoutParams(0, dp(38), 1);
         testParams.leftMargin = dp(8);
-        maps.addView(testMapButton, testParams);
-        left.addView(maps);
+        mapRow.addView(testMapButton, testParams);
+        left.addView(mapRow);
         gtaMapButton.setOnClickListener(v -> selectMap(0));
         testMapButton.setOnClickListener(v -> selectMap(1));
 
@@ -279,8 +281,8 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
             ? "The campaign with missions. Continues your latest save, or starts from the Prologue."
             : "Free roam anywhere on the map with every weapon. No missions.");
         boolean sandbox = selectedMode == 2;
-        gtaMapButton.setVisibility(sandbox ? View.VISIBLE : View.GONE);
-        testMapButton.setVisibility(sandbox ? View.VISIBLE : View.GONE);
+        mapLabel.setVisibility(sandbox ? View.VISIBLE : View.GONE);
+        mapRow.setVisibility(sandbox ? View.VISIBLE : View.GONE);
         findViewById(android.R.id.content).invalidate();
     }
 
