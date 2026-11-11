@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+"""Host-compile tests for original iOS DRAW and DISPATCH packet layouts."""
+import pathlib
+import subprocess
+import tempfile
+
+HARNESS = r"""
+#include "gpu_command_packets.h"
+#include <cassert>
+#include <cstdint>
+int main() {
+    PGAndroidDrawPacket draw{};
+    const uint32_t direct[] = {3, 120, 2, 4, 0xfffffffeu, 7};
+    assert(PGAndroidDecodeDrawPacket(direct, 6, draw));
+    assert(draw.kind == PG_ANDROID_DRAW_INDEXED_INSTANCED);
+    assert(draw.countOrArgumentBuffer == 120 && draw.instanceCount == 2);
+    assert(draw.startOrArgumentOffset == 4 && draw.baseVertex == -2 && draw.startInstance == 7);
+    const uint32_t indirect[] = {4, 55, 0, 16, 0, 0};
+    assert(PGAndroidDecodeDrawPacket(indirect, 6, draw));
+    assert(draw.kind == PG_ANDROID_DRAW_INDEXED_INDIRECT && draw.startOrArgumentOffset == 16);
+    const uint32_t badKind[] = {6, 1, 1, 0, 0, 0};
+    const uint32_t badIndirect[] = {5, 0, 0, 2, 0, 0};
+    assert(!PGAndroidDecodeDrawPacket(direct, 5, draw));
+    assert(!PGAndroidDecodeDrawPacket(badKind, 6, draw));
+    assert(!PGAndroidDecodeDrawPacket(badIndirect, 6, draw));
+    PGAndroidDispatchPacket dispatch{};
+    const uint32_t groups[] = {8, 4, 2};
+    assert(PGAndroidDecodeDispatchPacket(groups, 3, dispatch));
+    assert(dispatch.x == 8 && dispatch.y == 4 && dispatch.z == 2);
+    const uint32_t zeroGroup[] = {8, 0, 2};
+    assert(!PGAndroidDecodeDispatchPacket(groups, 2, dispatch));
+    assert(!PGAndroidDecodeDispatchPacket(zeroGroup, 3, dispatch));
+    return 0;
+}
+"""
+
+def main():
+    root = pathlib.Path(__file__).resolve().parents[2]
+    header = root / "android/app/src/main/cpp"
+    with tempfile.TemporaryDirectory(prefix="pg-packets-") as tmp:
+        src = pathlib.Path(tmp) / "test.cpp"
+        exe = pathlib.Path(tmp) / "test"
+        src.write_text(HARNESS)
+        subprocess.run(["c++", "-std=c++20", "-Wall", "-Wextra", "-Werror",
+                        "-I", str(header), str(src), "-o", str(exe)], check=True)
+        subprocess.run([str(exe)], check=True)
+    print("Android draw and dispatch packet tests passed")
+
+if __name__ == "__main__":
+    main()
