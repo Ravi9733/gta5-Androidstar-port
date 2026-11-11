@@ -4,11 +4,13 @@
 #include <android/native_window_jni.h>
 #include <android/log.h>
 #include <vulkan/vulkan.h>
+#include "gpu_resources.h"
 
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <mutex>
+#include <memory>
 #include <vector>
 
 namespace {
@@ -23,6 +25,7 @@ struct VulkanHost {
     VkSurfaceKHR surface = VK_NULL_HANDLE;
     VkPhysicalDevice physical = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;
+    std::unique_ptr<PGAndroidGpuResources> resources;
     VkQueue queue = VK_NULL_HANDLE;
     uint32_t queueFamily = UINT32_MAX;
     VkSwapchainKHR swapchain = VK_NULL_HANDLE;
@@ -59,6 +62,7 @@ bool supportsSwapchain(VkPhysicalDevice device) {
 void destroySwapchain() {
     if (host.device) {
         (void)vkDeviceWaitIdle(host.device);
+        host.resources.reset();
         for (VkFramebuffer framebuffer : host.framebuffers)
             if (framebuffer) vkDestroyFramebuffer(host.device, framebuffer, nullptr);
         host.framebuffers.clear();
@@ -324,6 +328,7 @@ bool initialize(ANativeWindow *window) {
     deviceInfo.ppEnabledExtensionNames = deviceExtensions;
     if (!check(vkCreateDevice(host.physical, &deviceInfo, nullptr, &host.device), "vkCreateDevice")) return false;
     vkGetDeviceQueue(host.device, host.queueFamily, 0, &host.queue);
+    host.resources = std::make_unique<PGAndroidGpuResources>(host.physical, host.device);
 
     VkCommandPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     poolInfo.queueFamilyIndex = host.queueFamily;
@@ -494,4 +499,25 @@ Java_com_ravi_gta5port_MainActivity_nativeUpdateController(
     state.lookDX = lookDX;
     state.lookDY = lookDY;
     PGUpdateController(state, elapsedSeconds);
+}
+
+
+/* Entry point for the original iOS command-ring consumer once its shared
+ * engine-memory ring is attached to the Android host. Packet words exclude
+ * the 8-byte command header, matching MRRenderer.mm execute(op, p, n). */
+extern "C" bool PGAndroidExecuteGpuPacket(uint32_t opcode, const uint32_t *words,
+                                           uint32_t wordCount) {
+    std::lock_guard<std::mutex> lock(host.mutex);
+    if (!host.device || !host.resources || (!words && wordCount)) return false;
+    switch (opcode) {
+        case PG_ANDROID_OP_CREATE_BUFFER:
+            return host.resources->createBuffer(words, wordCount);
+        case PG_ANDROID_OP_UPLOAD_BUFFER:
+        case PG_ANDROID_OP_UPLOAD_BUFFER_NO_OVERWRITE:
+            return host.resources->uploadBuffer(words, wordCount);
+        case PG_ANDROID_OP_DESTROY_OBJECT:
+            return wordCount >= 1 && host.resources->destroyObject(words[0]);
+        default:
+            return false; // Unsupported opcodes are never silently treated as rendered.
+    }
 }
