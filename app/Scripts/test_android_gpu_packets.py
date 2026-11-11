@@ -23,6 +23,27 @@ int main() {
     assert(!PGAndroidDecodeDrawPacket(direct, 5, draw));
     assert(!PGAndroidDecodeDrawPacket(badKind, 6, draw));
     assert(!PGAndroidDecodeDrawPacket(badIndirect, 6, draw));
+
+    PGAndroidCreateShaderPacket shader{};
+    const uint32_t shaderWords[] = {91, 1, 0x12345678u, 0x9abcdef0u, 1,
+                                    2, 3, 4, 5};
+    assert(PGAndroidDecodeCreateShaderPacket(shaderWords, 9, shader));
+    assert(shader.objectId == 91 && shader.stage == 1 && shader.hashLow == 0x12345678u);
+    assert(shader.hashHigh == 0x9abcdef0u && shader.inputCount == 1);
+    assert(shader.inputSignatures[0] == 2 && shader.inputSignatures[3] == 5);
+    const uint32_t badShaderStage[] = {91, 3, 1, 2, 0};
+    const uint32_t shortShader[] = {91, 1, 1, 2, 1, 3, 4};
+    assert(!PGAndroidDecodeCreateShaderPacket(badShaderStage, 5, shader));
+    assert(!PGAndroidDecodeCreateShaderPacket(shortShader, 7, shader));
+
+    PGAndroidCreateLayoutPacket layout{};
+    const uint32_t layoutWords[] = {77, 1, 10, 11, 12, 13, 14, 15, 16};
+    assert(PGAndroidDecodeCreateLayoutPacket(layoutWords, 9, layout));
+    assert(layout.objectId == 77 && layout.elementCount == 1);
+    assert(layout.elements[0] == 10 && layout.elements[6] == 16);
+    const uint32_t shortLayout[] = {77, 1, 10, 11};
+    assert(!PGAndroidDecodeCreateLayoutPacket(shortLayout, 4, layout));
+
     PGAndroidDispatchPacket dispatch{};
     const uint32_t groups[] = {8, 4, 2};
     assert(PGAndroidDecodeDispatchPacket(groups, 3, dispatch));
