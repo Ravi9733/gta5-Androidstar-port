@@ -55,7 +55,7 @@ void *PGDecodeBC(int format,uint32_t width,uint32_t height,uint32_t depth,uint32
       decodeBlock(format,compressed,destination,(int)destinationPitch);
     }else{
       _Alignas(16) uint8_t block[128];
-      if(format==6){uint16_t rgb[48];bcdec_bc6h_half(compressed,rgb,12,0);uint16_t *rgba=(uint16_t *)block;for(int p=0;p<16;p++){memcpy(rgba+p*4,rgb+p*3,6);rgba[p*4+3]=0x3c00;}}
+      if(format==6){uint16_t rgb[48];bcdec_bc6h_half(compressed,rgb,24,0);uint16_t *rgba=(uint16_t *)block;for(int p=0;p<16;p++){memcpy(rgba+p*4,rgb+p*3,6);rgba[p*4+3]=0x3c00;}}
       else decodeBlock(format,compressed,block,(int)(4*pixelBytes));
       for(uint32_t y=0;y<rows;y++)memcpy(destination+y*destinationPitch,block+y*4*pixelBytes,columns*pixelBytes);
     }
