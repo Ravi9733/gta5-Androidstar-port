@@ -6,6 +6,12 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
+#include <unistd.h>
+
+static uint64_t pg_android_mesh_page_size(void) {
+  long value = sysconf(_SC_PAGESIZE);
+  return value > 0 ? (uint64_t)value : 4096;
+}
 
 void PGMeshFaultWaitStats(uint64_t *waits, uint64_t *maxUs, uint64_t *slow, uint64_t *late) {
   if (waits) *waits = 0; if (maxUs) *maxUs = 0; if (slow) *slow = 0; if (late) *late = 0;
@@ -45,7 +51,9 @@ void PGMeshReleaseStats(uint64_t *released, uint64_t *byFault, uint64_t *byForge
                         uint64_t *byTouch, uint64_t *mismatched, uint64_t *page,
                         uint64_t *orphanedPages, uint64_t *orphanWritten, uint64_t *orphanRead) {
   if (released) *released = 0; if (byFault) *byFault = 0; if (byForget) *byForget = 0;
-  if (byTouch) *byTouch = 0; if (mismatched) *mismatched = 0; if (page) *page = 0;
+  if (byTouch) *byTouch = 0; if (mismatched) *mismatched = 0;
+  // Report the real Android kernel page size even while the Mach-based release feature stays disabled.
+  if (page) *page = pg_android_mesh_page_size();
   if (orphanedPages) *orphanedPages = 0; if (orphanWritten) *orphanWritten = 0; if (orphanRead) *orphanRead = 0;
 }
 int PGMeshReleaseOn(void) { return 0; }
