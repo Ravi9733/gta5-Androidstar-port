@@ -82,6 +82,7 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
 
         FrameLayout root = new FrameLayout(this);
         boolean landscape = getResources().getDisplayMetrics().widthPixels > getResources().getDisplayMetrics().heightPixels;
+        boolean portrait = !landscape;
         root.setBackground(PortTheme.poster(this, landscape
             ? "posters/start-bg-ipad.jpg" : "posters/start-bg-iphone.jpg"));
 
@@ -93,8 +94,8 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         ));
 
         LinearLayout content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.HORIZONTAL);
-        content.setPadding(dp(26), dp(22), dp(26), dp(18));
+        content.setOrientation(portrait ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
+        content.setPadding(dp(portrait ? 16 : 26), dp(portrait ? 24 : 22), dp(portrait ? 16 : 26), dp(18));
         root.addView(content, new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.MATCH_PARENT
@@ -107,8 +108,9 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         left.setOrientation(LinearLayout.VERTICAL);
         left.setPadding(0, dp(8), dp(16), dp(8));
         leftScroll.addView(left);
-        content.addView(leftScroll, new LinearLayout.LayoutParams(0,
-            LinearLayout.LayoutParams.MATCH_PARENT, 0.44f));
+        content.addView(leftScroll, portrait
+            ? new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+            : new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 0.44f));
 
         LinearLayout header = new LinearLayout(this);
         header.setGravity(Gravity.CENTER_VERTICAL);
@@ -203,8 +205,15 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         LinearLayout right = new LinearLayout(this);
         right.setOrientation(LinearLayout.VERTICAL);
         right.setPadding(dp(16), dp(8), 0, dp(8));
-        content.addView(right, new LinearLayout.LayoutParams(0,
-            LinearLayout.LayoutParams.MATCH_PARENT, 0.56f));
+        content.addView(right, portrait
+            ? new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 0f)
+            : new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 0.56f));
+        if (portrait) {
+            right.setVisibility(View.GONE);
+            right.removeView(actions);
+            left.addView(actions, 1, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(42)));
+        }
 
         LinearLayout actions = new LinearLayout(this);
         actions.setGravity(Gravity.RIGHT);
