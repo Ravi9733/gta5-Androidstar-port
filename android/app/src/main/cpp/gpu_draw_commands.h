@@ -34,3 +34,24 @@ bool PGAndroidRecordDrawInRenderTargets(VkCommandBuffer commandBuffer,
     VkIndexType indexType, uint32_t vertexCount, uint32_t indexCount,
     uint32_t instanceCount, uint32_t firstVertexOrIndex, int32_t vertexOffset,
     uint32_t firstInstance);
+
+/* Synchronizes live image/buffer descriptors, then begins the target pass and records a draw. */
+bool PGAndroidPrepareAndRecordDraw(VkCommandBuffer commandBuffer, VkDevice device,
+    PGAndroidGpuResources &resources, const PGAndroidRenderTargets &targets,
+    const uint32_t *colorViewIds, uint32_t colorCount, uint32_t depthViewId,
+    const VkClearColorValue *colorClears, float depthClear, uint32_t stencilClear,
+    const PGAndroidPipeline &pipeline, const PGAndroidPipelineLayout &layout,
+    const PGAndroidShaderModule *shaders, uint32_t shaderCount,
+    const PGAndroidGpuBindingState &state, PGAndroidDescriptorWriter &writer,
+    const uint32_t *vertexBufferIds, const VkDeviceSize *vertexOffsets,
+    uint32_t vertexBufferCount, uint32_t indexBufferId, VkDeviceSize indexOffset,
+    VkIndexType indexType, uint32_t vertexCount, uint32_t indexCount,
+    uint32_t instanceCount, uint32_t firstVertexOrIndex, int32_t vertexOffset,
+    uint32_t firstInstance);
+
+/* Synchronizes live descriptors and records a compute dispatch. */
+bool PGAndroidPrepareAndRecordDispatch(VkCommandBuffer commandBuffer, VkDevice device,
+    PGAndroidGpuResources &resources, const PGAndroidPipeline &pipeline,
+    const PGAndroidPipelineLayout &layout, const PGAndroidShaderModule &shader,
+    const PGAndroidGpuBindingState &state, PGAndroidDescriptorWriter &writer,
+    uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ);
