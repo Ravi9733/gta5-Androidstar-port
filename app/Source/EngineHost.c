@@ -43,6 +43,15 @@ static void pg_mod_test_recheck(void);
 #include <sys/sysctl.h>
 #endif
 
+static uint64_t pg_system_page_size(void) {
+#if defined(__ANDROID__)
+  long value = sysconf(_SC_PAGESIZE);
+  return value > 0 ? (uint64_t)value : 4096;
+#else
+  return 16384;
+#endif
+}
+
 // The memory the app may still use before the system stops it (iOS's Jetsam limit). macOS has no such
 // limit, so the Mac app gives itself one, by default 60% of the Mac's memory (PG_STREAM_MEMORY_LIMIT_MB
 // overrides), and every budget built on the iPhone limit works the same there (GTA-9).
@@ -275,7 +284,7 @@ static uint64_t pg_advise_runs(uint64_t b,uint64_t e,int advice,uint64_t *failed
 #if defined(__ANDROID__)
  long pageValue=sysconf(_SC_PAGESIZE);const uint64_t page=pageValue>0?(uint64_t)pageValue:4096;
 #else
- const uint64_t page=16384;
+ const uint64_t page=pg_system_page_size();
 #endif
  uint64_t done=0,run=b;
  for(uint64_t p=b;p<=e;p+=page){
@@ -286,9 +295,16 @@ static uint64_t pg_advise_runs(uint64_t b,uint64_t e,int advice,uint64_t *failed
  return done;
 }
 static bool heapReturnOn(void){
+#if defined(__ANDROID__)
+ // MADV_FREE_REUSABLE / MADV_FREE_REUSE have no Android equivalent. Mapping them to
+ // MADV_DONTNEED would discard live heap contents, so keep this optimization disabled.
+ if(heapReturn<0){heapReturn=0;pg_log("Engine memory: page-return optimization disabled on Android.");}
+ return false;
+#else
  if(heapReturn<0){const char *v=getenv("PG_HEAP_RETURN");heapReturn=!(v&&!strcmp(v,"0"));
   if(heapReturn)pg_log("Engine memory: freed blocks go back to iOS.");}
  return heapReturn;
+#endif
 }
 void PGMeshFreed(uint64_t start,uint64_t size);	// NativeMeshRelease.c: dead mesh pieces in freed memory can go (GTA-217)
 void pg_buddy_free(w2c_game *instance,u64 allocator,u64 block){
@@ -313,7 +329,7 @@ void pg_buddy_allocated(w2c_game *instance,u64 block,u64 size){
  (void)instance;
  if(block&&size)PGMeshAllocated(block,size);
  if(!block||!size||heapReturn!=1)return;
- const uint64_t page=16384;
+ const uint64_t page=pg_system_page_size();
  uint64_t b=block&~(page-1),e=(block+size+page-1)&~(page-1);
  if(e>env.memory.size)e=env.memory.size;
  uint64_t failed=0;
@@ -326,7 +342,7 @@ void pg_buddy_defragment(w2c_game *instance,u64 allocator){
  if(heapReturn!=1||allocator+32>env.memory.size)return;
  uint64_t base,size;memcpy(&base,env.memory.data+allocator+8,8);memcpy(&size,env.memory.data+allocator+24,8);
  if(!size||base+size>env.memory.size)return;
- const uint64_t page=16384;uint64_t failed=0;
+ const uint64_t page=pg_system_page_size();uint64_t failed=0;
  pg_advise_runs(base&~(page-1),(base+size+page-1)&~(page-1),PG_MADV_FREE_REUSE,&failed);
  if(failed)atomic_fetch_add(&heapReuseFailedBytes,failed);
  static bool logged;if(!logged){logged=true;pg_log("Engine memory: the engine defragments a pool (marked in use first).");}
@@ -411,7 +427,7 @@ void PGLogMemoryPools(void){
  long pageValue = sysconf(_SC_PAGESIZE);
  const uint64_t page = pageValue > 0 ? (uint64_t)pageValue : 4096;
 #else
- const uint64_t page=16384;
+ const uint64_t page=pg_system_page_size();
 #endif
  int n=atomic_load(&engineRegionCount);if(n>64)n=64;
  char line[1024];int at=snprintf(line,sizeof line,"Engine memory held:");
