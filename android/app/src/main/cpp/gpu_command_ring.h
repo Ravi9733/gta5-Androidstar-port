@@ -29,6 +29,11 @@ PGAndroidGpuRingResult PGAndroidGpuRingRead(
     const uint8_t *ring, uint32_t ring_size, uint32_t head,
     PGAndroidGpuRingCursor *cursor, PGAndroidGpuPacket *packet);
 
+/* Consume supported packets in order. Unsupported packets remain at tail. */
+int PGAndroidConsumeGpuRing(const uint8_t *ring, uint32_t ring_size,
+                            uint32_t head, PGAndroidGpuRingCursor *cursor,
+                            uint32_t max_packets, uint32_t *processed);
+
 #ifdef __cplusplus
 }
 #endif
