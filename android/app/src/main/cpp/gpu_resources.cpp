@@ -605,8 +605,10 @@ bool PGAndroidGpuResources::getImageDescriptor(uint32_t id,
     if (texture == textures_.end()) return false;
     out = {};
     out.imageView = it->second.view;
-    out.imageLayout = it->second.unorderedAccess
-        ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    if (texture->second.layout == VK_IMAGE_LAYOUT_UNDEFINED) return false;
+    // Descriptor layout must describe the image's actual current layout. A later
+    // command barrier may transition it before binding/use.
+    out.imageLayout = texture->second.layout;
     return true;
 }
 
