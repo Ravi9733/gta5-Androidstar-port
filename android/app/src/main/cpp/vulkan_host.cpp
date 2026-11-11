@@ -13,6 +13,8 @@
 #include <memory>
 #include <vector>
 
+extern "C" void PGStopGraphics(void);
+
 namespace {
 constexpr const char *kTag = "GTA5Android";
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, kTag, __VA_ARGS__)
@@ -467,6 +469,7 @@ Java_com_ravi_gta5port_MainActivity_nativeResize(JNIEnv *, jclass, jint width, j
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_ravi_gta5port_MainActivity_nativeDestroy(JNIEnv *, jclass) {
+    PGStopGraphics();
     std::lock_guard<std::mutex> lock(host.mutex);
     destroyLocked();
 }
