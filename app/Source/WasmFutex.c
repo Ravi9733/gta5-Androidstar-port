@@ -9,6 +9,7 @@
 #include <sys/syscall.h>
 #include <linux/futex.h>
 #include <limits.h>
+#include <unistd.h>
 #else
 #include <os/clock.h>
 #include <os/os_sync_wait_on_address.h>
