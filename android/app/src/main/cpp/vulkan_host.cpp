@@ -331,7 +331,7 @@ bool initialize(ANativeWindow *window) {
     deviceInfo.ppEnabledExtensionNames = deviceExtensions;
     if (!check(vkCreateDevice(host.physical, &deviceInfo, nullptr, &host.device), "vkCreateDevice")) return false;
     vkGetDeviceQueue(host.device, host.queueFamily, 0, &host.queue);
-    host.resources = std::make_unique<PGAndroidGpuResources>(host.physical, host.device);
+    host.resources = std::make_unique<PGAndroidGpuResources>(host.physical, host.device, host.queue, host.queueFamily);
 
     VkCommandPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     poolInfo.queueFamilyIndex = host.queueFamily;
@@ -520,6 +520,8 @@ extern "C" bool PGAndroidExecuteGpuPacket(uint32_t opcode, const uint32_t *words
             return host.resources->createTexture(words, wordCount);
         case PG_ANDROID_OP_CREATE_BUFFER:
             return host.resources->createBuffer(words, wordCount);
+        case PG_ANDROID_OP_UPLOAD_TEXTURE:
+            return host.resources->uploadTexture(words, wordCount);
         case PG_ANDROID_OP_UPLOAD_BUFFER:
         case PG_ANDROID_OP_UPLOAD_BUFFER_NO_OVERWRITE:
             return host.resources->uploadBuffer(words, wordCount);
