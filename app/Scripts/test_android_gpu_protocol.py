@@ -41,7 +41,7 @@ h = module.render_header(p)
 assert "PG_ANDROID_OP_UPLOAD_BUFFER_NO_OVERWRITE = 47" in h
 assert "PG_ANDROID_GPU_RING_HEADER_BYTES 64u" in h
 
-bad = renderer.replace("DRAW = 32", "DRAW = 39")
+bad = renderer.replace("DRAW = 32", "DRAW = 99")
 try:
     module.parse_protocol(bad, header)
 except SystemExit as error:
