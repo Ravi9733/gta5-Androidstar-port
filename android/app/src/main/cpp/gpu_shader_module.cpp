@@ -6,9 +6,9 @@ bool PGAndroidCreateShaderModule(
     VkDevice device, const uint32_t *spirv, size_t byteCount, VkShaderStageFlagBits stage,
     const PGAndroidShaderResource *resources, uint32_t resourceCount,
     const PGAndroidGpuBindingState &state, PGAndroidShaderModule &out) {
-    if (device == VK_NULL_HANDLE || !spirv || byteCount < 20 || (byteCount & 3u) ||
+    if (device == VK_NULL_HANDLE || !spirv || (!resources && resourceCount) || byteCount < 20 || (byteCount & 3u) ||
         out.module != VK_NULL_HANDLE) return false;
-    if (spirv[0] != 0x07230203u || spirv[3] == 0 || spirv[4] != 0) return false;
+    if (spirv[0] != 0x07230203u || spirv[1] < 0x00010000u || spirv[1] > 0x00010600u ||\n        spirv[3] == 0 || spirv[4] != 0) return false;
     uint32_t stageIndex;
     switch (stage) {
         case VK_SHADER_STAGE_VERTEX_BIT: stageIndex=0; break;
