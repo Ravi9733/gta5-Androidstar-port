@@ -119,3 +119,8 @@ The APK definitely uses Vulkan, but this inspection did not find AdrenoTools, Tu
 ### Source matching remains the blocker
 
 The APK exports JNI names under `site.fivestarport.app` and packages `libfivestar.so`. The repository's inspected Android Java shell instead uses package `com.ravi.gta5port` and loads `gta5_android`; its native graphics implementation in the inspected source is Metal/Xcode-based. Therefore the supplied APK's actual Android build source is still not represented by the inspected Android shell. The next safe step is to locate or recover the matching Android source/build provenance, not to edit unrelated JNI code.
+
+
+### Repository source search result
+
+GitHub code searches on the repository's default branch for `vkCreateInstance`, `Android Vulkan`, `site.fivestarport.app`, `PGStartGraphics`, and `VK_KHR_android_surface` returned no indexed source matches. This reinforces that the Android Vulkan implementation which produced the supplied APK is not currently available through the repository's indexed source files. Code search indexes the default branch, so this result is not proof that no source exists in any unindexed branch or external upstream.
