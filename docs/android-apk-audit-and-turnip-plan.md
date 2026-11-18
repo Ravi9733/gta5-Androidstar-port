@@ -99,3 +99,23 @@ A binary-XML string-pool inspection of the supplied APK's manifest recovered:
 - Manifest includes the `android.hardware.vulkan.version` feature declaration.
 
 This identifies the exact package namespace and launcher entry point, and confirms the manifest declares a Vulkan hardware feature. It still does not identify the Vulkan API version value or prove that Turnip/custom-driver injection is supported.
+
+
+## Native Vulkan and JNI audit (2026-11-18, follow-up)
+
+A second pass inspected the supplied APK's DEX files and the dynamic symbol table of `libfivestar.so`:
+
+- The native library has direct undefined imports for the Vulkan API, including `vkCreateInstance`, `vkEnumeratePhysicalDevices`, `vkGetPhysicalDeviceProperties`, `vkCreateDevice`, queue/swapchain creation, graphics and compute pipelines, command submission, presentation, and GPU timestamp queries.
+- This is stronger evidence than a `libvulkan.so` dependency alone: the APK's native library contains a real Vulkan renderer path.
+- Imported/used extension identifiers found in the binary include `VK_KHR_android_surface`, `VK_KHR_surface`, `VK_KHR_swapchain`, `VK_KHR_timeline_semaphore`, `VK_KHR_synchronization2`, `VK_KHR_dynamic_rendering`, `VK_KHR_create_renderpass2`, `VK_KHR_depth_stencil_resolve`, `VK_EXT_extended_dynamic_state`, and `VK_EXT_extended_dynamic_state2`.
+- JNI exports are named for package `site.fivestarport.app`; the Engine bridge includes `setSurface`, `configure`, `start`, `setMemoryCap`, `setPresentInterval`, `setSharperUpscaling`, `renderedFramesPerSecond`, and `shownFrameHistogram`. The library also exports Archive, Input, Torrent, and Unpacker JNI bridges.
+- DEX class/string inspection identifies app components such as `MainActivity`, `GraphicsPage`, `DevicePage`, `PerformanceTarget`, and `GraphicsPreset`. User-facing settings strings include 30 FPS, 60 FPS, Unlocked up to 120, Auto resolution, Balanced/Performance/Quality/Ultra presets, a memory cap, and an adaptive behavior that lowers draw distance, pedestrians, and traffic when the phone is hot.
+- The native binary contains a pipeline-cache file name, `/vulkan-pipelines.bin`, and GPU timestamp-query calls. These are promising existing foundations for profiling and shader/pipeline cache investigation.
+
+### Turnip status after this pass
+
+The APK definitely uses Vulkan, but this inspection did not find AdrenoTools, Turnip, `VK_DRIVER_FILES`, or `VK_ICD_FILENAMES` strings. This does **not** rule out Android system-level driver selection or a driver override performed externally; it means a built-in Turnip picker/loader is not established by the binary evidence. Do not inject a driver by patching the stripped library.
+
+### Source matching remains the blocker
+
+The APK exports JNI names under `site.fivestarport.app` and packages `libfivestar.so`. The repository's inspected Android Java shell instead uses package `com.ravi.gta5port` and loads `gta5_android`; its native graphics implementation in the inspected source is Metal/Xcode-based. Therefore the supplied APK's actual Android build source is still not represented by the inspected Android shell. The next safe step is to locate or recover the matching Android source/build provenance, not to edit unrelated JNI code.
