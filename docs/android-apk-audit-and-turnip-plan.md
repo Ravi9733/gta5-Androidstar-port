@@ -146,3 +146,21 @@ The connected GitHub account's accessible repositories were enumerated. Besides 
 We have now matched the APK to the official Five Star Port Android release/version family, but not to its build source. The official public-source cutoff (v1.5.2) is older than the supplied v1.6.4-android APK. Therefore there is still no source-backed way to modify its renderer or safely add an in-app Turnip loader. The next practical engineering route is a runtime-only diagnostic on the rooted Adreno 730 phone: capture the app's Vulkan driver/device identity, Vulkan capability/extension list, memory and thermal state, and the app's own log immediately after a texture-streaming slowdown. This can determine whether the system driver is already Turnip and separate memory/thermal/streaming pressure from a renderer defect without changing the APK or game data.
 
 No APK was rebuilt, installed, patched, or modified in this step. Existing game files and saves remain untouched.
+
+
+## Turnip integration feasibility and Adreno 730 driver selection (2026-11-18)
+
+The latest upstream/community Turnip release was checked on 2026-11-18:
+
+- The412Banner/Banners-Turnip publishes `Turnip-v27.0.0-20261118-r2.zip` for Adreno 6xx/7xx, including Adreno 730. The release is an automated Mesa-main build checked by CI but explicitly not device-tested. It is therefore a candidate driver package, not a verified performance upgrade for this app/device.
+- The package variant intended for Android app integration is the standard X11/AdrenoTools ZIP. Wayland and Linux-runtime variants are not interchangeable with an Android app's in-process Vulkan driver.
+- `libadrenotools` documentation states that each app must explicitly integrate the library; it is not a system-wide driver installer. A standalone Turnip ZIP cannot make an app use Turnip if that app has no custom-driver loading path.
+- The supplied `site.fivestarport.app` APK's stripped native library has no evidence of AdrenoTools/Turnip loader integration. Its real Vulkan renderer imports alone do not provide a safe hook to redirect Vulkan loading.
+
+### Decision
+
+Do not try to force this APK onto Turnip using global `VK_DRIVER_FILES`, system library replacement, Magisk/KernelSU overlays, or binary patching. These are not a supported substitute for an app-level AdrenoTools integration and could break Vulkan apps or the device UI. The correct implementation requires the matching Android source/build inputs and an explicit per-app driver loader before Vulkan instance creation.
+
+Candidate to evaluate only after that hook exists: standard Adreno 6xx/7xx Turnip v27.0.0-20261118-r2, not A8xx, A710/A720/A722 test, OneUI A740, Wayland, or Linux packages. Preserve system-driver fallback and allow the user to switch back without touching game data.
+
+This is a source/driver compatibility decision only. No APK, device driver, root module, or game data was changed, and no performance gain is claimed.
