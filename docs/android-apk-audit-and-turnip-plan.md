@@ -86,3 +86,16 @@ The current repository Android shell is **not yet a reproducible source match fo
 ### Required next gate
 
 Before implementation, obtain a source/build provenance match for the exact APK: package ID/version, signing/build metadata, and the source revision or native build inputs that produced `libfivestar.so`. Then establish a real Android JNI + Vulkan host and a reproducible Android build. Only after that can Turnip driver loading and Adreno 730 optimization be implemented and tested safely.
+
+
+## APK manifest identification
+
+A binary-XML string-pool inspection of the supplied APK's manifest recovered:
+
+- Application ID: `site.fivestarport.app`
+- Version name: `1.6.4-android`
+- Application class: `site.fivestarport.app.App`
+- Launcher activity: `site.fivestarport.app.MainActivity`
+- Manifest includes the `android.hardware.vulkan.version` feature declaration.
+
+This identifies the exact package namespace and launcher entry point, and confirms the manifest declares a Vulkan hardware feature. It still does not identify the Vulkan API version value or prove that Turnip/custom-driver injection is supported.
