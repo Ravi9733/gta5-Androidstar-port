@@ -124,3 +124,25 @@ The APK exports JNI names under `site.fivestarport.app` and packages `libfivesta
 ### Repository source search result
 
 GitHub code searches on the repository's default branch for `vkCreateInstance`, `Android Vulkan`, `site.fivestarport.app`, `PGStartGraphics`, and `VK_KHR_android_surface` returned no indexed source matches. This reinforces that the Android Vulkan implementation which produced the supplied APK is not currently available through the repository's indexed source files. Code search indexes the default branch, so this result is not proof that no source exists in any unindexed branch or external upstream.
+
+
+## Official Five Star Port Android release and upstream-source check (2026-11-18)
+
+The official project site was checked against the APK manifest:
+
+- The official Android page lists version **1.6.4**, released **2026-11-17**, for Android 10+, arm64, Vulkan graphics. Its APK size is described as about 200 MB, consistent with the supplied ~197 MiB package.
+- The page recommends Vulkan 1.3 and Adreno 7xx/8xx or Mali-G7xx/Immortalis, with 8 GB RAM or more. It reports beta examples around 40 FPS at 540p on Snapdragon 8 Elite/12 GB, 45 FPS at 540p on an Adreno 735/12 GB, and 50 FPS at 720p on Mali-G720/8 GB. These are publisher-reported examples, not measurements on the user's Snapdragon 8+ Gen 1 / Adreno 730.
+- The same page says the project is open source only **up to v1.5.2** and links separate iPhone and Mac source repositories. The supplied APK is v1.6.4-android, so the public source statement does not establish source availability for this exact Android binary.
+- The public iPhone repository source describes a Metal renderer and iOS/Xcode build, which is not the Android Vulkan implementation found in the APK.
+- The official FAQ's texture-loading advice explains that missing/grey ground and blurry buildings generally indicate memory pressure, often from resolution or texture settings being too high; it recommends Auto resolution and the preset's own texture setting, plus closing other apps. This FAQ material is written primarily for iOS, so its Apple-specific entitlement advice must not be applied to Android.
+- The FAQ also documents that high texture quality consumes memory, and that overheating slows asset loading. These are plausible investigation areas, not proof of the exact cause on this Android build.
+
+### Additional repository screening
+
+The connected GitHub account's accessible repositories were enumerated. Besides this gta5-Androidstar-port mirror, the account has gta-v-native-android and FivePocket repositories. Their READMEs describe unrelated experimental iOS/Metal work and an Xbox 360 static-recompilation project, respectively; neither identifies itself as the source of site.fivestarport.app or libfivestar.so. GitHub code searches across the accessible account for site.fivestarport.app, libfivestar, and Engine_setSurface returned no matching indexed source.
+
+### Updated conclusion / next safe action
+
+We have now matched the APK to the official Five Star Port Android release/version family, but not to its build source. The official public-source cutoff (v1.5.2) is older than the supplied v1.6.4-android APK. Therefore there is still no source-backed way to modify its renderer or safely add an in-app Turnip loader. The next practical engineering route is a runtime-only diagnostic on the rooted Adreno 730 phone: capture the app's Vulkan driver/device identity, Vulkan capability/extension list, memory and thermal state, and the app's own log immediately after a texture-streaming slowdown. This can determine whether the system driver is already Turnip and separate memory/thermal/streaming pressure from a renderer defect without changing the APK or game data.
+
+No APK was rebuilt, installed, patched, or modified in this step. Existing game files and saves remain untouched.
