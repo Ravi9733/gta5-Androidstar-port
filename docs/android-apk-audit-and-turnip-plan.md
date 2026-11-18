@@ -164,3 +164,24 @@ Do not try to force this APK onto Turnip using global `VK_DRIVER_FILES`, system 
 Candidate to evaluate only after that hook exists: standard Adreno 6xx/7xx Turnip v27.0.0-20261118-r2, not A8xx, A710/A720/A722 test, OneUI A740, Wayland, or Linux packages. Preserve system-driver fallback and allow the user to switch back without touching game data.
 
 This is a source/driver compatibility decision only. No APK, device driver, root module, or game data was changed, and no performance gain is claimed.
+
+
+## Upstream source audit: public v1.5.2 repository vs Android v1.6.4 APK (2026-11-18)
+
+- kevinerikjs/gta5-ios-port README describes an iPhone-only WebAssembly-to-ARM64 build with a native Metal renderer. Its build instructions target a Mac/Xcode workflow.
+- The upstream FAQ explicitly says there is no Android version in that source project. GitHub code search in the upstream default branch for VK_KHR_android_surface, vkCreateInstance, libfivestar, Android Vulkan renderer, and build_android_app.sh found no matching Android Vulkan implementation.
+- Android-related strings found in the source search were incidental libarchive header comments/conditional definitions, not an Android app or renderer.
+- The Android landing page advertises an Android 1.6.4 APK, but the upstream public source README/FAQ and source cutoff statement do not expose a matching Android project. Matching version numbers or a similar product name are not sufficient to establish that public iOS code can build the supplied Android APK.
+
+### Engineering consequence
+
+Do not transplant the upstream Metal renderer into the Android APK or treat the iOS source as a drop-in Android port. It would require a real Android platform layer, Vulkan renderer, Android build system, JNI bridge, asset/thread/memory integration, and matching engine revision. The Android APK's libfivestar.so exports a different JNI surface and imports Vulkan directly. A speculative rewrite would not preserve compatibility or prove the game can boot.
+
+### Next work queue (source-side, safe)
+
+1. Keep searching public branches/forks/releases for the exact Android package/JNI identifiers and matching native library provenance.
+2. Inspect the public v1.5.2 source build scripts and identify reusable platform-neutral engine components, clearly separating them from Apple Metal, Objective-C, and Xcode-only code.
+3. Prepare an Android Vulkan/AdrenoTools integration design with system-driver fallback and no global driver overrides, but do not wire it into an unrelated binary.
+4. Only once matching Android source/build inputs are found, implement and compile the Turnip loader, then verify driver identity and rendering on Adreno 730. Until then, do not claim Turnip is active or performance improved.
+
+No APK was rebuilt, installed, patched, or modified in this step. Existing game files and saves remain untouched.
