@@ -66,3 +66,23 @@ Tests should record:
 - Do not overwrite or delete the user's existing installation, game files, or saves during tests.
 - Keep system-driver fallback available.
 - Never describe a build as "perfect" or "optimized" until repeatable device tests support the claim.
+
+
+## Source-to-APK compatibility check (2026-11-18)
+
+The Android tree on this branch was inspected after the APK binary audit:
+
+- The only Android Java source is `android/app/src/main/java/com/ravi/gta5port/MainActivity.java`.
+- That activity calls `System.loadLibrary("gta5_android")` and declares JNI entry points such as `nativeCreate`, `nativeResize`, and `nativeRenderFrame`.
+- The supplied APK instead contains `libfivestar.so`; its native library name does not match the Android source's expected `libgta5_android.so`.
+- The repository tree contains no Android JNI C/C++ implementation, Android manifest, Gradle build files, or Vulkan renderer source for this Java shell.
+- The repository's actual native graphics host is `app/Source/MetalGraphicsHost.mm`, and its renderer implementation is `app/Source/MetalRenderer/`. The native build script invokes Xcode for `iphoneos`, builds Metal shaders, and does not define an Android/Vulkan build.
+- `app/Scripts/test_android_engine_pipeline.py` imports `app/Scripts/prepare_android_engine.py`, but that referenced script is absent from the inspected branch tree.
+
+### Consequence
+
+The current repository Android shell is **not yet a reproducible source match for the supplied APK**. The APK's Vulkan dependency alone is not enough to port the repository's Metal renderer to Android or safely inject Turnip. No renderer patch or APK rebuild should be attempted from this source state.
+
+### Required next gate
+
+Before implementation, obtain a source/build provenance match for the exact APK: package ID/version, signing/build metadata, and the source revision or native build inputs that produced `libfivestar.so`. Then establish a real Android JNI + Vulkan host and a reproducible Android build. Only after that can Turnip driver loading and Adreno 730 optimization be implemented and tested safely.
